@@ -34,8 +34,6 @@ import javax.servlet.http.HttpSessionEvent;
 import org.wildfly.clustering.ee.Batch;
 import org.wildfly.clustering.ee.Batcher;
 import org.wildfly.clustering.ee.hotrod.HotRodBatcher;
-import org.wildfly.clustering.service.concurrent.ServiceExecutor;
-import org.wildfly.clustering.service.concurrent.StampedLockServiceExecutor;
 import org.wildfly.clustering.web.IdentifierFactory;
 import org.wildfly.clustering.web.hotrod.Keyed;
 import org.wildfly.clustering.web.hotrod.Logger;
@@ -60,7 +58,6 @@ public class HotRodSessionManager<K, MV extends Keyed<K>, AV, L> implements Sess
     private final ServletContext context;
 
     private volatile Scheduler scheduler;
-    private volatile ServiceExecutor executor;
 
     public HotRodSessionManager(SessionFactory<K, MV, AV, L> factory, HotRodSessionManagerConfiguration configuration) {
         this.factory = factory;
@@ -71,15 +68,12 @@ public class HotRodSessionManager<K, MV extends Keyed<K>, AV, L> implements Sess
 
     @Override
     public void start() {
-        this.executor = new StampedLockServiceExecutor();
         this.scheduler = new SessionExpirationScheduler(new ExpiredSessionRemover<>(this.factory, this.expirationListener));
     }
 
     @Override
     public void stop() {
-        this.executor.close(() -> {
-            this.scheduler.close();
-        });
+        this.scheduler.close();
     }
 
     @Override

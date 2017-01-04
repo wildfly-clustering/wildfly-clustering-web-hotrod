@@ -40,4 +40,19 @@ public class SessionCreationMetaDataKey extends SessionKey<String> {
     public String getDeployment() {
         return this.deployment;
     }
+
+    @Override
+    public int hashCode() {
+        return (31 * super.hashCode()) + this.deployment.hashCode();
+    }
+
+    @Override
+    public boolean equals(Object object) {
+        return super.equals(object) && this.deployment.equals(((SessionCreationMetaDataKey) object).deployment);
+    }
+
+    @Override
+    public String toString() {
+        return this.deployment + "/" + super.toString();
+    }
 }

@@ -36,4 +36,19 @@ public class SessionKey<I> {
     public I getId() {
         return this.id;
     }
+
+    @Override
+    public int hashCode() {
+        return this.id.hashCode();
+    }
+
+    @Override
+    public boolean equals(Object object) {
+        return this.getClass().equals(object.getClass()) && this.id.equals(((SessionKey<?>) object).id);
+    }
+
+    @Override
+    public String toString() {
+        return this.id.toString();
+    }
 }
