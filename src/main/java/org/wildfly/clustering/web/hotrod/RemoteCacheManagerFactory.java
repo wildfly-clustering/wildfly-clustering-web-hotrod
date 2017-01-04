@@ -45,7 +45,7 @@ public class RemoteCacheManagerFactory implements Supplier<RemoteCacheManager> {
         int maxActiveSessions = this.config.getMaxActiveSessions();
         Configuration configuration = new ConfigurationBuilder()
                 .withProperties(this.config.getProperties())
-                .nearCache().mode((maxActiveSessions == 0) ? NearCacheMode.DISABLED : NearCacheMode.INVALIDATED).maxEntries(maxActiveSessions)
+                .nearCache().mode((maxActiveSessions == 0) ? NearCacheMode.DISABLED : NearCacheMode.INVALIDATED).maxEntries(maxActiveSessions * 3)
                 .marshaller(new HotRodMarshaller(this.getClass().getClassLoader()))
                 .build();
 
