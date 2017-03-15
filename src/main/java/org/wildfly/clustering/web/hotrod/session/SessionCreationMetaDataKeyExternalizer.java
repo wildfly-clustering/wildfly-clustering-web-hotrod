@@ -54,7 +54,7 @@ public class SessionCreationMetaDataKeyExternalizer implements Externalizer<Sess
     }
 
     @Override
-    public Class<? extends SessionCreationMetaDataKey> getTargetClass() {
+    public Class<SessionCreationMetaDataKey> getTargetClass() {
         return SessionCreationMetaDataKey.class;
     }
 }
