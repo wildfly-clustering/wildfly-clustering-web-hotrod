@@ -33,7 +33,6 @@
     </parent>
 
     <artifactId>wildfly-clustering-web-hotrod</artifactId>
-    <version>11.0.0.Alpha1-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>WildFly: Web session clustering - HotRod service provider</name>

@@ -34,7 +34,8 @@ import org.wildfly.clustering.web.hotrod.SessionKeyExternalizer;
 @MetaInfServices(Externalizer.class)
 public class SessionAttributesKeyExternalizer extends SessionKeyExternalizer<SessionAttributesKey<UUID>> {
 
+    @SuppressWarnings("unchecked")
     public SessionAttributesKeyExternalizer() {
-        super(SessionAttributesKey.class, id -> new SessionAttributesKey<>(id));
+        super((Class<SessionAttributesKey<UUID>>) (Class<?>) SessionAttributesKey.class, id -> new SessionAttributesKey<>(id));
     }
 }

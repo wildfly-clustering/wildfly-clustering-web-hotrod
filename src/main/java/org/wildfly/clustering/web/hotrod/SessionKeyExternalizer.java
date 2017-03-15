@@ -30,6 +30,8 @@ import java.util.function.Function;
 
 import org.wildfly.clustering.marshalling.Externalizer;
 import org.wildfly.clustering.marshalling.spi.util.UUIDExternalizer;
+import org.wildfly.common.function.ExceptionBiConsumer;
+import org.wildfly.common.function.ExceptionBiFunction;
 
 /**
  * @author Paul Ferraro
@@ -38,43 +40,34 @@ public class SessionKeyExternalizer<K extends SessionKey<UUID>> implements Exter
 
     private static final Externalizer<UUID> UUID_EXTERNALIZER = new UUIDExternalizer();
 
-    public interface SessionKeyFactory<K> {
-        K createSessionKey(UUID id, ObjectInput input) throws IOException;
-    }
+    private final Class<K> targetClass;
+    private final ExceptionBiFunction<UUID, ObjectInput, K, IOException> resolver;
+    private final ExceptionBiConsumer<K, ObjectOutput, IOException> writer;
 
-    public interface SessionKeyWriter<K> {
-        void writeCompoundKeyComponents(K key, ObjectOutput output) throws IOException;
-    }
-
-    private final Class<? extends K> targetClass;
-    private final SessionKeyFactory<K> factory;
-    private final SessionKeyWriter<K> writer;
-
-    @SuppressWarnings("unchecked")
-    public SessionKeyExternalizer(@SuppressWarnings("rawtypes") Class targetClass, SessionKeyFactory<K> factory, SessionKeyWriter<K> writer) {
+    public SessionKeyExternalizer(Class<K> targetClass, ExceptionBiFunction<UUID, ObjectInput, K, IOException> resolver, ExceptionBiConsumer<K, ObjectOutput, IOException> writer) {
         this.targetClass = targetClass;
-        this.factory = factory;
+        this.resolver = resolver;
         this.writer = writer;
     }
 
-    public SessionKeyExternalizer(@SuppressWarnings("rawtypes") Class targetClass, Function<UUID, K> factory) {
-        this(targetClass, (id, input) -> factory.apply(id), (key, output) -> {});
+    public SessionKeyExternalizer(Class<K> targetClass, Function<UUID, K> resolver) {
+        this(targetClass, (id, input) -> resolver.apply(id), (key, output) -> {});
     }
 
     @Override
     public void writeObject(ObjectOutput output, K key) throws IOException {
         UUID_EXTERNALIZER.writeObject(output, key.getId());
-        this.writer.writeCompoundKeyComponents(key, output);
+        this.writer.accept(key, output);
     }
 
     @Override
     public K readObject(ObjectInput input) throws IOException, ClassNotFoundException {
         UUID id = UUID_EXTERNALIZER.readObject(input);
-        return this.factory.createSessionKey(id, input);
+        return this.resolver.apply(id, input);
     }
 
     @Override
-    public Class<? extends K> getTargetClass() {
+    public Class<K> getTargetClass() {
         return this.targetClass;
     }
 }
