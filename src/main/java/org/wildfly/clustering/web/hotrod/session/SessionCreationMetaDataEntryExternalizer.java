@@ -61,9 +61,9 @@ public class SessionCreationMetaDataEntryExternalizer implements Externalizer<Se
         return new SessionCreationMetaDataEntry<>(key, metaData);
     }
 
-    @SuppressWarnings({ "unchecked", "rawtypes" })
+    @SuppressWarnings("unchecked")
     @Override
-    public Class getTargetClass() {
-        return SessionCreationMetaDataEntry.class;
+    public Class<SessionCreationMetaDataEntry<UUID, Object>> getTargetClass() {
+        return (Class<SessionCreationMetaDataEntry<UUID, Object>>) (Class<?>) SessionCreationMetaDataEntry.class;
     }
 }
