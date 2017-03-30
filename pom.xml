@@ -21,9 +21,7 @@
   ~ 02110-1301 USA, or see the FSF site: http://www.fsf.org.
   -->
 
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
@@ -33,7 +31,7 @@
     </parent>
 
     <artifactId>wildfly-clustering-web-hotrod</artifactId>
-    <version>11.0.0.Alpha1-SNAPSHOT</version>
+    <version>11.0.0.Alpha1</version>
     <packaging>jar</packaging>
 
     <name>WildFly: Web session clustering - HotRod service provider</name>
@@ -42,7 +40,8 @@
         <connection>scm:git:git://github.com:wildfly-clustering/wildfly-clustering-web-hotrod.git</connection>
         <developerConnection>scm:git:git@github.com:wildfly-clustering/wildfly-clustering-web-hotrod.git</developerConnection>
         <url>https://github.com/wildfly-clustering/wildfly-clustering-web-hotrod</url>
-    </scm>
+      <tag>11.0.0.Alpha1</tag>
+  </scm>
 
     <dependencies>
         <dependency>
