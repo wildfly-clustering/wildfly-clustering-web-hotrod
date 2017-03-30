@@ -28,7 +28,7 @@
 
     <parent>
         <groupId>org.wildfly</groupId>
-        <artifactId>wildfly-clustering-web</artifactId>
+        <artifactId>wildfly-parent</artifactId>
         <version>11.0.0.Alpha1</version>
     </parent>
 
@@ -48,15 +48,17 @@
         <dependency>
             <groupId>org.wildfly</groupId>
             <artifactId>wildfly-clustering-ee-hotrod</artifactId>
-            <version>${project.version}</version>
+            <version>${project.parent.version}</version>
         </dependency>
         <dependency>
             <groupId>org.wildfly</groupId>
             <artifactId>wildfly-clustering-marshalling-jboss</artifactId>
+            <version>${project.parent.version}</version>
         </dependency>
         <dependency>
             <groupId>org.wildfly</groupId>
             <artifactId>wildfly-clustering-web-spi</artifactId>
+            <version>${project.parent.version}</version>
         </dependency>
         <dependency>
             <groupId>org.wildfly.security</groupId>
