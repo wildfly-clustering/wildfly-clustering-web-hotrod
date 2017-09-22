@@ -31,7 +31,7 @@
     </parent>
 
     <artifactId>wildfly-clustering-web-hotrod</artifactId>
-    <version>11.0.0.CR1-SNAPSHOT</version>
+    <version>11.0.0.CR1</version>
     <packaging>jar</packaging>
 
     <name>WildFly: Web session clustering - HotRod service provider</name>
@@ -40,7 +40,7 @@
         <connection>scm:git:git://github.com:wildfly-clustering/wildfly-clustering-web-hotrod.git</connection>
         <developerConnection>scm:git:git@github.com:wildfly-clustering/wildfly-clustering-web-hotrod.git</developerConnection>
         <url>https://github.com/wildfly-clustering/wildfly-clustering-web-hotrod</url>
-        <tag>HEAD</tag>
+        <tag>11.0.0.CR1</tag>
     </scm>
 
     <dependencies>
