@@ -24,6 +24,7 @@ package org.wildfly.clustering.web.hotrod;
 
 import java.util.function.Supplier;
 
+import org.infinispan.client.hotrod.RemoteCacheContainer;
 import org.infinispan.client.hotrod.RemoteCacheManager;
 import org.infinispan.client.hotrod.configuration.Configuration;
 import org.infinispan.client.hotrod.configuration.ConfigurationBuilder;
@@ -32,16 +33,16 @@ import org.infinispan.client.hotrod.configuration.NearCacheMode;
 /**
  * @author Paul Ferraro
  */
-public class RemoteCacheManagerFactory implements Supplier<RemoteCacheManager> {
+public class RemoteCacheContainerFactory implements Supplier<RemoteCacheContainer> {
 
-    private final RemoteCacheManagerConfiguration config;
+    private final RemoteCacheContainerConfiguration config;
 
-    public RemoteCacheManagerFactory(RemoteCacheManagerConfiguration config) {
+    public RemoteCacheContainerFactory(RemoteCacheContainerConfiguration config) {
         this.config = config;
     }
 
     @Override
-    public RemoteCacheManager get() {
+    public RemoteCacheContainer get() {
         int maxActiveSessions = this.config.getMaxActiveSessions();
         Configuration configuration = new ConfigurationBuilder()
                 .withProperties(this.config.getProperties())

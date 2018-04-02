@@ -22,6 +22,8 @@
 
 package org.wildfly.clustering.web.hotrod.session;
 
+import java.util.UUID;
+
 import org.wildfly.clustering.web.LocalContextFactory;
 import org.wildfly.clustering.web.session.ImmutableSession;
 import org.wildfly.clustering.web.session.ImmutableSessionAttributes;
@@ -31,32 +33,32 @@ import org.wildfly.clustering.web.session.Session;
 /**
  * @author Paul Ferraro
  */
-public class HotRodSessionFactory<K, V, L> implements SessionFactory<K, HotRodSessionMetaData<K, L>, V, L> {
+public class HotRodSessionFactory<V, L> implements SessionFactory<UUID, HotRodSessionMetaData<L>, V, L> {
 
-    private final SessionMetaDataFactory<K, HotRodSessionMetaData<K, L>, L> metaDataFactory;
-    private final SessionAttributesFactory<K, V> attributesFactory;
+    private final SessionMetaDataFactory<UUID, HotRodSessionMetaData<L>, L> metaDataFactory;
+    private final SessionAttributesFactory<UUID, V> attributesFactory;
     private final LocalContextFactory<L> localContextFactory;
 
-    public HotRodSessionFactory(SessionMetaDataFactory<K, HotRodSessionMetaData<K, L>, L> metaDataFactory, SessionAttributesFactory<K, V> attributesFactory, LocalContextFactory<L> localContextFactory) {
+    public HotRodSessionFactory(SessionMetaDataFactory<UUID, HotRodSessionMetaData<L>, L> metaDataFactory, SessionAttributesFactory<UUID, V> attributesFactory, LocalContextFactory<L> localContextFactory) {
         this.metaDataFactory = metaDataFactory;
         this.attributesFactory = attributesFactory;
         this.localContextFactory = localContextFactory;
     }
 
     @Override
-    public SessionEntry<K, HotRodSessionMetaData<K, L>, V> createValue(String id, Void context) {
-        HotRodSessionMetaData<K, L> metaDataValue = this.metaDataFactory.createValue(id, context);
+    public SessionEntry<UUID, HotRodSessionMetaData<L>, V> createValue(String id, Void context) {
+        HotRodSessionMetaData<L> metaDataValue = this.metaDataFactory.createValue(id, context);
         if (metaDataValue == null) return null;
-        K key = metaDataValue.getKey();
+        UUID key = metaDataValue.getId();
         V attributesValue = this.attributesFactory.createValue(key, context);
         return new HotRodSessionEntry<>(key, metaDataValue, attributesValue);
     }
 
     @Override
-    public SessionEntry<K, HotRodSessionMetaData<K, L>, V> findValue(String id) {
-        HotRodSessionMetaData<K, L> metaData = this.metaDataFactory.findValue(id);
+    public SessionEntry<UUID, HotRodSessionMetaData<L>, V> findValue(String id) {
+        HotRodSessionMetaData<L> metaData = this.metaDataFactory.findValue(id);
         if (metaData != null) {
-            K key = metaData.getKey();
+            UUID key = metaData.getId();
             V attributes = this.attributesFactory.findValue(key);
             if (attributes != null) {
                 return new HotRodSessionEntry<>(key, metaData, attributes);
@@ -69,27 +71,27 @@ public class HotRodSessionFactory<K, V, L> implements SessionFactory<K, HotRodSe
 
     @Override
     public boolean remove(String id) {
-        K key = this.metaDataFactory.remove(id);
+        UUID key = this.metaDataFactory.remove(id);
         if (key == null) return false;
         this.attributesFactory.remove(key);
         return true;
     }
 
     @Override
-    public SessionMetaDataFactory<K, HotRodSessionMetaData<K, L>, L> getMetaDataFactory() {
+    public SessionMetaDataFactory<UUID, HotRodSessionMetaData<L>, L> getMetaDataFactory() {
         return this.metaDataFactory;
     }
 
     @Override
-    public SessionAttributesFactory<K, V> getAttributesFactory() {
+    public SessionAttributesFactory<UUID, V> getAttributesFactory() {
         return this.attributesFactory;
     }
 
     @Override
-    public Session<L> createSession(String id, SessionEntry<K, HotRodSessionMetaData<K, L>, V> entry) {
-        HotRodSessionMetaData<K, L> metaDataValue = entry.getMetaDataValue();
+    public Session<L> createSession(String id, SessionEntry<UUID, HotRodSessionMetaData<L>, V> entry) {
+        HotRodSessionMetaData<L> metaDataValue = entry.getMetaDataValue();
         InvalidatableSessionMetaData metaData = this.metaDataFactory.createSessionMetaData(id, metaDataValue);
-        SessionAttributes attributes = this.attributesFactory.createSessionAttributes(entry.getKey(), entry.getAttributesValue());
+        SessionAttributes attributes = this.attributesFactory.createSessionAttributes(entry.getId(), entry.getAttributesValue());
         return new HotRodSession<>(id, metaData, attributes, metaDataValue.getLocalContext(), this.localContextFactory, this);
     }
 

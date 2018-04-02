@@ -31,11 +31,13 @@ import javax.servlet.ServletContext;
 import javax.servlet.http.HttpSessionActivationListener;
 import javax.servlet.http.HttpSessionEvent;
 
+import org.wildfly.clustering.Registrar;
+import org.wildfly.clustering.Registration;
 import org.wildfly.clustering.ee.Batch;
 import org.wildfly.clustering.ee.Batcher;
 import org.wildfly.clustering.ee.hotrod.HotRodBatcher;
 import org.wildfly.clustering.web.IdentifierFactory;
-import org.wildfly.clustering.web.hotrod.Keyed;
+import org.wildfly.clustering.web.hotrod.Identified;
 import org.wildfly.clustering.web.hotrod.Logger;
 import org.wildfly.clustering.web.session.ImmutableHttpSessionAdapter;
 import org.wildfly.clustering.web.session.ImmutableSession;
@@ -50,30 +52,34 @@ import org.wildfly.clustering.web.session.SessionMetaData;
  * Generic HotRod-based session manager implementation - independent of cache mapping strategy.
  * @author Paul Ferraro
  */
-public class HotRodSessionManager<K, MV extends Keyed<K>, AV, L> implements SessionManager<L, Batch> {
+public class HotRodSessionManager<K, MV extends Identified<K>, AV, L> implements SessionManager<L, Batch> {
+    private final Registrar<SessionExpirationListener> expirationRegistrar;
     private final SessionExpirationListener expirationListener;
+    private final Scheduler expirationScheduler;
     private final SessionFactory<K, MV, AV, L> factory;
     private final IdentifierFactory<String> identifierFactory;
     private volatile Duration defaultMaxInactiveInterval = Duration.ofMinutes(30L);
     private final ServletContext context;
 
-    private volatile Scheduler scheduler;
+    private volatile Registration expirationRegistration;
 
     public HotRodSessionManager(SessionFactory<K, MV, AV, L> factory, HotRodSessionManagerConfiguration configuration) {
         this.factory = factory;
+        this.expirationRegistrar = configuration.getExpirationRegistrar();
         this.expirationListener = configuration.getExpirationListener();
+        this.expirationScheduler = configuration.getExpirationScheduler();
         this.context = configuration.getServletContext();
         this.identifierFactory = configuration.getIdentifierFactory();
     }
 
     @Override
     public void start() {
-        this.scheduler = new SessionExpirationScheduler(new ExpiredSessionRemover<>(this.factory, this.expirationListener));
+        this.expirationRegistration = this.expirationRegistrar.register(this.expirationListener);
     }
 
     @Override
     public void stop() {
-        this.scheduler.close();
+        this.expirationRegistration.close();
     }
 
     @Override
@@ -110,7 +116,7 @@ public class HotRodSessionManager<K, MV extends Keyed<K>, AV, L> implements Sess
             this.factory.remove(id);
             return null;
         }
-        this.scheduler.cancel(id);
+        this.expirationScheduler.cancel(id);
         this.triggerPostActivationEvents(session);
         return new SchedulableSession(this.factory.createSession(id, entry), session);
     }
@@ -141,11 +147,6 @@ public class HotRodSessionManager<K, MV extends Keyed<K>, AV, L> implements Sess
     }
 
     @Override
-    public int getMaxActiveSessions() {
-        return Integer.MAX_VALUE;
-    }
-
-    @Override
     public long getActiveSessionCount() {
         return this.getActiveSessions().size();
     }
@@ -167,7 +168,7 @@ public class HotRodSessionManager<K, MV extends Keyed<K>, AV, L> implements Sess
     }
 
     void schedule(ImmutableSession session) {
-        this.scheduler.schedule(session.getId(), session.getMetaData());
+        this.expirationScheduler.schedule(session.getId(), session.getMetaData());
     }
 
     private static List<HttpSessionActivationListener> findListeners(ImmutableSession session) {

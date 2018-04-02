@@ -22,18 +22,20 @@
 package org.wildfly.clustering.web.hotrod.session;
 
 import org.infinispan.client.hotrod.RemoteCache;
-import org.infinispan.client.hotrod.RemoteCacheManager;
+import org.infinispan.client.hotrod.RemoteCacheContainer;
 import org.wildfly.clustering.marshalling.spi.Marshallability;
 import org.wildfly.clustering.web.session.SessionManagerFactoryConfiguration;
 
-public interface HotRodSessionManagerFactoryConfiguration<C extends Marshallability> {
+public interface HotRodSessionManagerFactoryConfiguration<C extends Marshallability, L> {
 
-    SessionManagerFactoryConfiguration<C> getSessionManagerFactoryConfiguration();
+    SessionManagerFactoryConfiguration<C, L> getSessionManagerFactoryConfiguration();
 
-    RemoteCacheManager getCacheContainer();
+    RemoteCacheContainer getCacheContainer();
 
     default <K, V> RemoteCache<K, V> getCache() {
         String cacheName = this.getSessionManagerFactoryConfiguration().getCacheName();
-        return (cacheName != null) ? this.getCacheContainer().getCache(cacheName) : this.getCacheContainer().getCache();
+        RemoteCacheContainer container = this.getCacheContainer();
+        boolean forceReturnValues = container.getConfiguration().forceReturnValues();
+        return (cacheName != null) ? container.getCache(cacheName, forceReturnValues) : container.getCache(forceReturnValues);
     }
 }

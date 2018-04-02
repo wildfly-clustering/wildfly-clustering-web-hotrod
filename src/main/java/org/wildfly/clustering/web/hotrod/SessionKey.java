@@ -22,10 +22,12 @@
 
 package org.wildfly.clustering.web.hotrod;
 
+import java.util.Objects;
+
 /**
  * @author Paul Ferraro
  */
-public class SessionKey<I> {
+public class SessionKey<I> implements Identified<I> {
 
     private I id;
 
@@ -33,13 +35,14 @@ public class SessionKey<I> {
         this.id = id;
     }
 
+    @Override
     public I getId() {
         return this.id;
     }
 
     @Override
     public int hashCode() {
-        return this.id.hashCode();
+        return Objects.hash(this.getClass(), this.id);
     }
 
     @Override
@@ -49,6 +52,6 @@ public class SessionKey<I> {
 
     @Override
     public String toString() {
-        return this.id.toString();
+        return String.format("%s(%s)", this.getClass().getSimpleName(), this.id);
     }
 }

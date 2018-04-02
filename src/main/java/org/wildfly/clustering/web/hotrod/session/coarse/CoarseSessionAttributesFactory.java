@@ -23,9 +23,9 @@
 package org.wildfly.clustering.web.hotrod.session.coarse;
 
 import java.util.Map;
+import java.util.UUID;
 import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
 
 import org.infinispan.client.hotrod.RemoteCache;
 import org.wildfly.clustering.ee.Mutator;
@@ -40,29 +40,27 @@ import org.wildfly.clustering.web.session.ImmutableSessionAttributes;
 /**
  * @author Paul Ferraro
  */
-public class CoarseSessionAttributesFactory<K, V> implements SessionAttributesFactory<K, Map.Entry<Map<String, Object>, V>> {
+public class CoarseSessionAttributesFactory<V> implements SessionAttributesFactory<UUID, Map.Entry<Map<String, Object>, V>> {
 
-    private final RemoteCache<SessionAttributesKey<K>, V> cache;
-    private final Function<K, SessionAttributesKey<K>> keyFactory;
+    private final RemoteCache<SessionAttributesKey, V> cache;
     private final Marshaller<Map<String, Object>, V> marshaller;
 
-    public CoarseSessionAttributesFactory(RemoteCache<SessionAttributesKey<K>, V> cache, Marshaller<Map<String, Object>, V> marshaller) {
+    public CoarseSessionAttributesFactory(RemoteCache<SessionAttributesKey, V> cache, Marshaller<Map<String, Object>, V> marshaller) {
         this.cache = cache;
-        this.keyFactory = id -> new SessionAttributesKey<>(id);
         this.marshaller = marshaller;
     }
 
     @Override
-    public Map.Entry<Map<String, Object>, V> createValue(K id, Void context) {
+    public Map.Entry<Map<String, Object>, V> createValue(UUID id, Void context) {
         Map<String, Object> attributes = new ConcurrentHashMap<>();
         V value = this.marshaller.write(attributes);
-        this.cache.put(this.keyFactory.apply(id), value);
+        this.cache.put(new SessionAttributesKey(id), value);
         return new SimpleImmutableEntry<>(attributes, value);
     }
 
     @Override
-    public Map.Entry<Map<String, Object>, V> findValue(K id) {
-        V value = this.cache.get(this.keyFactory.apply(id));
+    public Map.Entry<Map<String, Object>, V> findValue(UUID id) {
+        V value = this.cache.get(new SessionAttributesKey(id));
         if (value != null) {
             try {
                 Map<String, Object> attributes = this.marshaller.read(value);
@@ -76,20 +74,19 @@ public class CoarseSessionAttributesFactory<K, V> implements SessionAttributesFa
     }
 
     @Override
-    public SessionAttributes createSessionAttributes(K id, Map.Entry<Map<String, Object>, V> entry) {
-        SessionAttributesKey<K> key = this.keyFactory.apply(id);
-        Mutator mutator = new RemoteCacheEntryMutator<>(this.cache, key, entry.getValue());
+    public SessionAttributes createSessionAttributes(UUID id, Map.Entry<Map<String, Object>, V> entry) {
+        Mutator mutator = new RemoteCacheEntryMutator<>(this.cache, new SessionAttributesKey(id), entry.getValue());
         return new CoarseSessionAttributes(entry.getKey(), mutator, this.marshaller);
     }
 
     @Override
-    public ImmutableSessionAttributes createImmutableSessionAttributes(K id, Map.Entry<Map<String, Object>, V> entry) {
+    public ImmutableSessionAttributes createImmutableSessionAttributes(UUID id, Map.Entry<Map<String, Object>, V> entry) {
         return new CoarseImmutableSessionAttributes(entry.getKey());
     }
 
     @Override
-    public boolean remove(K id) {
-        this.cache.remove(this.keyFactory.apply(id));
+    public boolean remove(UUID id) {
+        this.cache.remove(new SessionAttributesKey(id));
         return true;
     }
 }

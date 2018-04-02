@@ -22,30 +22,31 @@
 
 package org.wildfly.clustering.web.hotrod.session;
 
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.wildfly.clustering.web.hotrod.Keyed;
+import org.wildfly.clustering.web.hotrod.Identified;
 
 /**
  * Wrapper for the components of a sessions's meta-data,
  * @author Paul Ferraro
  */
-public class HotRodSessionMetaData<K, L> implements Keyed<K> {
-    private final K key;
+public class HotRodSessionMetaData<L> implements Identified<UUID> {
+    private final UUID id;
     private final SessionCreationMetaData creationMetaData;
     private final SessionAccessMetaData accessMetaData;
     private final AtomicReference<L> localContext;
 
-    public HotRodSessionMetaData(SessionCreationMetaDataEntry<K, L> creationMetaDataEntry, SessionAccessMetaData accessMetaData) {
-        this.key = creationMetaDataEntry.getKey();
+    public HotRodSessionMetaData(SessionCreationMetaDataEntry<L> creationMetaDataEntry, SessionAccessMetaData accessMetaData) {
+        this.id = creationMetaDataEntry.getId();
         this.creationMetaData = creationMetaDataEntry.getMetaData();
         this.accessMetaData = accessMetaData;
         this.localContext = creationMetaDataEntry.getLocalContext();
     }
 
     @Override
-    public K getKey() {
-        return this.key;
+    public UUID getId() {
+        return this.id;
     }
 
     public SessionCreationMetaData getCreationMetaData() {

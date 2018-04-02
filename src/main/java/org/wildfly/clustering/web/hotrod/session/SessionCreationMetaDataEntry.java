@@ -21,34 +21,35 @@
  */
 package org.wildfly.clustering.web.hotrod.session;
 
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Cache entry containing the session creation meta data and local context.
  * @author Paul Ferraro
  */
-public class SessionCreationMetaDataEntry<K, L> {
+public class SessionCreationMetaDataEntry<L> {
 
-    private final K key;
+    private final UUID id;
     private final SessionCreationMetaData metaData;
     private final AtomicReference<L> localContext;
 
-    public SessionCreationMetaDataEntry(K key, SessionCreationMetaData metaData) {
-        this(key, metaData, new AtomicReference<>());
+    public SessionCreationMetaDataEntry(UUID id, SessionCreationMetaData metaData) {
+        this(id, metaData, new AtomicReference<>());
     }
 
-    public SessionCreationMetaDataEntry(HotRodSessionMetaData<K, L> entry) {
-        this(entry.getKey(), entry.getCreationMetaData(), entry.getLocalContext());
+    public SessionCreationMetaDataEntry(HotRodSessionMetaData<L> entry) {
+        this(entry.getId(), entry.getCreationMetaData(), entry.getLocalContext());
     }
 
-    public SessionCreationMetaDataEntry(K key, SessionCreationMetaData metaData, AtomicReference<L> localContext) {
-        this.key = key;
+    public SessionCreationMetaDataEntry(UUID id, SessionCreationMetaData metaData, AtomicReference<L> localContext) {
+        this.id = id;
         this.metaData = metaData;
         this.localContext = localContext;
     }
 
-    public K getKey() {
-        return this.key;
+    public UUID getId() {
+        return this.id;
     }
 
     public SessionCreationMetaData getMetaData() {

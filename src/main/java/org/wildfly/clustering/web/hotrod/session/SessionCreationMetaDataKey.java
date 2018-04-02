@@ -22,6 +22,8 @@
 
 package org.wildfly.clustering.web.hotrod.session;
 
+import java.util.Objects;
+
 import org.wildfly.clustering.web.hotrod.SessionKey;
 
 /**
@@ -43,7 +45,7 @@ public class SessionCreationMetaDataKey extends SessionKey<String> {
 
     @Override
     public int hashCode() {
-        return (31 * super.hashCode()) + this.deployment.hashCode();
+        return Objects.hash(this.deployment, this.getId());
     }
 
     @Override
@@ -53,6 +55,6 @@ public class SessionCreationMetaDataKey extends SessionKey<String> {
 
     @Override
     public String toString() {
-        return this.deployment + "/" + super.toString();
+        return this.deployment + "/" + this.getId();
     }
 }

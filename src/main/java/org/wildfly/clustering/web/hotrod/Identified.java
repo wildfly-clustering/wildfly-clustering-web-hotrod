@@ -22,21 +22,9 @@
 
 package org.wildfly.clustering.web.hotrod;
 
-import java.util.Properties;
-
 /**
  * @author Paul Ferraro
  */
-public interface RemoteCacheManagerConfiguration {
-    /**
-     * The HotRod configuration properties.
-     * @return
-     */
-    Properties getProperties();
-
-    /**
-     * The maximum number of sessions to retain in memory.
-     * @return
-     */
-    int getMaxActiveSessions();
+public interface Identified<I> {
+    I getId();
 }

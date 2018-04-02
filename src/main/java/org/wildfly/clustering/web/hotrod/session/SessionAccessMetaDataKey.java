@@ -22,15 +22,17 @@
 
 package org.wildfly.clustering.web.hotrod.session;
 
+import java.util.UUID;
+
 import org.wildfly.clustering.web.hotrod.SessionKey;
 
 /**
  * Cache key for the session access meta data entry.
  * @author Paul Ferraro
  */
-public class SessionAccessMetaDataKey<I> extends SessionKey<I> {
+public class SessionAccessMetaDataKey extends SessionKey<UUID> {
 
-    public SessionAccessMetaDataKey(I id) {
+    public SessionAccessMetaDataKey(UUID id) {
         super(id);
     }
 }
