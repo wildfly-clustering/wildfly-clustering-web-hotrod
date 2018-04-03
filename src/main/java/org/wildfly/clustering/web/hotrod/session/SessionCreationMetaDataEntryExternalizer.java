@@ -31,39 +31,38 @@ import java.util.UUID;
 
 import org.kohsuke.MetaInfServices;
 import org.wildfly.clustering.marshalling.Externalizer;
-import org.wildfly.clustering.marshalling.spi.IndexExternalizer;
-import org.wildfly.clustering.marshalling.spi.time.InstantExternalizer;
-import org.wildfly.clustering.marshalling.spi.util.UUIDExternalizer;
+import org.wildfly.clustering.marshalling.spi.DefaultExternalizer;
+import org.wildfly.clustering.marshalling.spi.IndexSerializer;
 
 /**
  * Externalizer for {@link SessionCreationMetaDataEntry}
  * @author Paul Ferraro
  */
 @MetaInfServices(Externalizer.class)
-public class SessionCreationMetaDataEntryExternalizer implements Externalizer<SessionCreationMetaDataEntry<UUID, Object>> {
-    private static final Externalizer<UUID> UUID_EXTERNALIZER = new UUIDExternalizer();
-    private static final Externalizer<Instant> INSTANT_EXTERNALIZER = new InstantExternalizer();
+public class SessionCreationMetaDataEntryExternalizer implements Externalizer<SessionCreationMetaDataEntry<Object>> {
+    private static final Externalizer<UUID> UUID_EXTERNALIZER = DefaultExternalizer.UUID.cast(UUID.class);
+    private static final Externalizer<Instant> INSTANT_EXTERNALIZER = DefaultExternalizer.INSTANT.cast(Instant.class);
 
     @Override
-    public void writeObject(ObjectOutput output, SessionCreationMetaDataEntry<UUID, Object> entry) throws IOException {
-        UUID_EXTERNALIZER.writeObject(output, entry.getKey());
+    public void writeObject(ObjectOutput output, SessionCreationMetaDataEntry<Object> entry) throws IOException {
+        UUID_EXTERNALIZER.writeObject(output, entry.getId());
         SessionCreationMetaData metaData = entry.getMetaData();
         INSTANT_EXTERNALIZER.writeObject(output, metaData.getCreationTime());
-        IndexExternalizer.VARIABLE.writeObject(output, (int) metaData.getMaxInactiveInterval().getSeconds());
+        IndexSerializer.VARIABLE.writeInt(output, (int) metaData.getMaxInactiveInterval().getSeconds());
     }
 
     @Override
-    public SessionCreationMetaDataEntry<UUID, Object> readObject(ObjectInput input) throws IOException, ClassNotFoundException {
+    public SessionCreationMetaDataEntry<Object> readObject(ObjectInput input) throws IOException, ClassNotFoundException {
         UUID key = UUID_EXTERNALIZER.readObject(input);
         Instant created = INSTANT_EXTERNALIZER.readObject(input);
         SessionCreationMetaData metaData = new SimpleSessionCreationMetaData(created);
-        metaData.setMaxInactiveInterval(Duration.ofSeconds(IndexExternalizer.VARIABLE.readObject(input)));
+        metaData.setMaxInactiveInterval(Duration.ofSeconds(IndexSerializer.VARIABLE.readInt(input)));
         return new SessionCreationMetaDataEntry<>(key, metaData);
     }
 
     @SuppressWarnings("unchecked")
     @Override
-    public Class<SessionCreationMetaDataEntry<UUID, Object>> getTargetClass() {
-        return (Class<SessionCreationMetaDataEntry<UUID, Object>>) (Class<?>) SessionCreationMetaDataEntry.class;
+    public Class<SessionCreationMetaDataEntry<Object>> getTargetClass() {
+        return (Class<SessionCreationMetaDataEntry<Object>>) (Class<?>) SessionCreationMetaDataEntry.class;
     }
 }

@@ -22,24 +22,26 @@
 
 package org.wildfly.clustering.web.hotrod.session;
 
+import java.util.UUID;
+
 /**
  * @author Paul Ferraro
  */
-public class HotRodSessionEntry<K, MV, AV> implements SessionEntry<K, MV, AV> {
+public class HotRodSessionEntry<MV, AV> implements SessionEntry<UUID, MV, AV> {
 
-    private final K key;
+    private final UUID id;
     private final MV metaDataValue;
     private final AV attributesValue;
 
-    public HotRodSessionEntry(K key, MV metaDataValue, AV attributesValue) {
-        this.key = key;
+    public HotRodSessionEntry(UUID id, MV metaDataValue, AV attributesValue) {
+        this.id = id;
         this.metaDataValue = metaDataValue;
         this.attributesValue = attributesValue;
     }
 
     @Override
-    public K getKey() {
-        return this.key;
+    public UUID getId() {
+        return this.id;
     }
 
     @Override

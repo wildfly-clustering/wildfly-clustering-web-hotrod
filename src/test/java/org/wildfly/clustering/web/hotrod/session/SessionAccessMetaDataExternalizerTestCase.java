@@ -1,6 +1,6 @@
 /*
  * JBoss, Home of Professional Open Source.
- * Copyright 2016, Red Hat, Inc., and individual contributors
+ * Copyright 2017, Red Hat, Inc., and individual contributors
  * as indicated by the @author tags. See the copyright.txt file in the
  * distribution for a full listing of individual contributors.
  *
@@ -22,12 +22,27 @@
 
 package org.wildfly.clustering.web.hotrod.session;
 
-import org.wildfly.clustering.web.hotrod.Identified;
+import java.io.IOException;
+import java.time.Duration;
+
+import org.junit.Assert;
+import org.junit.Test;
+import org.wildfly.clustering.marshalling.ExternalizerTester;
 
 /**
+ * Unit test for {@link SessionAccessMetaDataExternalizer}.
  * @author Paul Ferraro
  */
-public interface SessionEntry<K, MV, AV> extends Identified<K> {
-    MV getMetaDataValue();
-    AV getAttributesValue();
+public class SessionAccessMetaDataExternalizerTestCase {
+
+    @Test
+    public void test() throws ClassNotFoundException, IOException {
+        SimpleSessionAccessMetaData metaData = new SimpleSessionAccessMetaData();
+        metaData.setLastAccessedDuration(Duration.ofMinutes(1));
+        new ExternalizerTester<>(new SessionAccessMetaDataExternalizer(), SessionAccessMetaDataExternalizerTestCase::assertEquals).test(metaData);
+    }
+
+    static void assertEquals(SimpleSessionAccessMetaData metaData1, SimpleSessionAccessMetaData metaData2) {
+        Assert.assertEquals(metaData1.getLastAccessedDuration(), metaData2.getLastAccessedDuration());
+    }
 }

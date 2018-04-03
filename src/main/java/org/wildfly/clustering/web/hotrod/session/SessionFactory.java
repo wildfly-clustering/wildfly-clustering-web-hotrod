@@ -24,7 +24,7 @@ package org.wildfly.clustering.web.hotrod.session;
 import org.wildfly.clustering.ee.Creator;
 import org.wildfly.clustering.ee.Locator;
 import org.wildfly.clustering.ee.Remover;
-import org.wildfly.clustering.web.hotrod.Keyed;
+import org.wildfly.clustering.web.hotrod.Identified;
 import org.wildfly.clustering.web.session.ImmutableSession;
 import org.wildfly.clustering.web.session.ImmutableSessionAttributes;
 import org.wildfly.clustering.web.session.ImmutableSessionMetaData;
@@ -34,14 +34,14 @@ import org.wildfly.clustering.web.session.Session;
  * Factory for creating sessions.  This represents the cache mapping strategy for sessions.
  * @author Paul Ferraro
  */
-public interface SessionFactory<K, MV extends Keyed<K>, AV, L> extends Creator<String, SessionEntry<K, MV, AV>, Void>, Locator<String, SessionEntry<K, MV, AV>>, Remover<String> {
+public interface SessionFactory<K, MV extends Identified<K>, AV, L> extends Creator<String, SessionEntry<K, MV, AV>, Void>, Locator<String, SessionEntry<K, MV, AV>>, Remover<String> {
     SessionMetaDataFactory<K, MV, L> getMetaDataFactory();
     SessionAttributesFactory<K, AV> getAttributesFactory();
 
     Session<L> createSession(String id, SessionEntry<K, MV, AV> entry);
 
     default ImmutableSession createImmutableSession(String id, SessionEntry<K, MV, AV> entry) {
-        return this.createImmutableSession(id, this.getMetaDataFactory().createImmutableSessionMetaData(id, entry.getMetaDataValue()), this.getAttributesFactory().createImmutableSessionAttributes(entry.getKey(), entry.getAttributesValue()));
+        return this.createImmutableSession(id, this.getMetaDataFactory().createImmutableSessionMetaData(id, entry.getMetaDataValue()), this.getAttributesFactory().createImmutableSessionAttributes(entry.getId(), entry.getAttributesValue()));
     }
 
     ImmutableSession createImmutableSession(String id, ImmutableSessionMetaData metaData, ImmutableSessionAttributes attributes);

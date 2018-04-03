@@ -22,10 +22,10 @@
 package org.wildfly.clustering.web.hotrod.session.fine;
 
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Function;
 
 import org.infinispan.client.hotrod.Flag;
 import org.infinispan.client.hotrod.RemoteCache;
@@ -40,22 +40,20 @@ import org.wildfly.clustering.web.session.SessionAttributeImmutability;
  * Exposes session attributes for fine granularity sessions.
  * @author Paul Ferraro
  */
-public class FineSessionAttributes<K, V> extends FineImmutableSessionAttributes<K, V> implements SessionAttributes {
+public class FineSessionAttributes<V> extends FineImmutableSessionAttributes<V> implements SessionAttributes {
     private final AtomicInteger sequence;
     private final ConcurrentMap<String, Integer> names;
     private final Mutator namesMutator;
-    private final RemoteCache<SessionAttributeKey<K>, V> cache;
-    private final Function<Integer, SessionAttributeKey<K>> keyFactory;
+    private final RemoteCache<SessionAttributeKey, V> cache;
     private final Map<String, Mutator> mutations = new ConcurrentHashMap<>();
     private final Marshaller<Object, V> marshaller;
 
-    public FineSessionAttributes(K key, AtomicInteger sequence, ConcurrentMap<String, Integer> names, Mutator namesMutator, RemoteCache<SessionAttributeKey<K>, V> cache, Function<Integer, SessionAttributeKey<K>> keyFactory, Marshaller<Object, V> marshaller) {
-        super(key, names, cache, keyFactory, marshaller);
+    public FineSessionAttributes(UUID id, AtomicInteger sequence, ConcurrentMap<String, Integer> names, Mutator namesMutator, RemoteCache<SessionAttributeKey, V> cache, Marshaller<Object, V> marshaller) {
+        super(id, names, cache, marshaller);
         this.sequence = sequence;
         this.names = names;
         this.namesMutator = namesMutator;
         this.cache = cache;
-        this.keyFactory = keyFactory;
         this.marshaller = marshaller;
     }
 
@@ -64,8 +62,7 @@ public class FineSessionAttributes<K, V> extends FineImmutableSessionAttributes<
         Integer attributeId = this.names.remove(name);
         if (attributeId == null) return null;
         this.namesMutator.mutate();
-        SessionAttributeKey<K> key = this.keyFactory.apply(attributeId);
-        Object result = this.read(name, this.cache.withFlags(Flag.FORCE_RETURN_VALUE).remove(key));
+        Object result = this.read(name, this.cache.withFlags(Flag.FORCE_RETURN_VALUE).remove(this.apply(attributeId)));
         this.mutations.remove(name);
         return result;
     }
@@ -84,8 +81,7 @@ public class FineSessionAttributes<K, V> extends FineImmutableSessionAttributes<
         if (attributeId > currentId) {
             this.namesMutator.mutate();
         }
-        SessionAttributeKey<K> key = this.keyFactory.apply(attributeId);
-        Object result = this.read(name, this.cache.withFlags(Flag.FORCE_RETURN_VALUE).put(key, value));
+        Object result = this.read(name, this.cache.withFlags(Flag.FORCE_RETURN_VALUE).put(this.apply(attributeId), value));
         this.mutations.remove(name);
         return result;
     }
@@ -94,7 +90,7 @@ public class FineSessionAttributes<K, V> extends FineImmutableSessionAttributes<
     public Object getAttribute(String name) {
         Integer attributeId = this.names.get(name);
         if (attributeId == null) return null;
-        SessionAttributeKey<K> key = this.keyFactory.apply(attributeId);
+        SessionAttributeKey key = this.apply(attributeId);
         V value = this.cache.get(key);
         Object attribute = this.read(name, value);
         if (attribute != null) {

@@ -20,14 +20,21 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
 
-package org.wildfly.clustering.web.hotrod.session;
+package org.wildfly.clustering.web.hotrod;
 
-import org.wildfly.clustering.web.hotrod.Identified;
+import org.kohsuke.MetaInfServices;
+import org.wildfly.clustering.marshalling.spi.Serializer;
+import org.wildfly.clustering.web.IdentifierSerializer;
+import org.wildfly.clustering.web.IdentifierSerializerProvider;
 
 /**
  * @author Paul Ferraro
  */
-public interface SessionEntry<K, MV, AV> extends Identified<K> {
-    MV getMetaDataValue();
-    AV getAttributesValue();
+@MetaInfServices(IdentifierSerializerProvider.class)
+public class TestIdentifierSerializerProvider implements IdentifierSerializerProvider {
+
+    @Override
+    public Serializer<String> getSerializer() {
+        return IdentifierSerializer.UTF8;
+    }
 }

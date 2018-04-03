@@ -1,6 +1,6 @@
 /*
  * JBoss, Home of Professional Open Source.
- * Copyright 2016, Red Hat, Inc., and individual contributors
+ * Copyright 2017, Red Hat, Inc., and individual contributors
  * as indicated by the @author tags. See the copyright.txt file in the
  * distribution for a full listing of individual contributors.
  *
@@ -22,12 +22,21 @@
 
 package org.wildfly.clustering.web.hotrod.session;
 
-import org.wildfly.clustering.web.hotrod.Identified;
+import java.io.IOException;
+import java.util.UUID;
+
+import org.junit.Test;
+import org.wildfly.clustering.marshalling.ExternalizerTester;
 
 /**
+ * Unit test for {@link SessionAccessMetaDataKeyResolver}.
  * @author Paul Ferraro
  */
-public interface SessionEntry<K, MV, AV> extends Identified<K> {
-    MV getMetaDataValue();
-    AV getAttributesValue();
+public class SessionAccessMetaDataKeyExternalizerTestCase {
+
+    @Test
+    public void test() throws ClassNotFoundException, IOException {
+        SessionAccessMetaDataKey key = new SessionAccessMetaDataKey(UUID.randomUUID());
+        new ExternalizerTester<>(new SessionAccessMetaDataKeyExternalizer()).test(key);
+    }
 }

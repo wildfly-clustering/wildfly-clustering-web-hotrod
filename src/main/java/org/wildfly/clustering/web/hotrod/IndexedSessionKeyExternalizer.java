@@ -1,6 +1,6 @@
 /*
  * JBoss, Home of Professional Open Source.
- * Copyright 2016, Red Hat, Inc., and individual contributors
+ * Copyright 2018, Red Hat, Inc., and individual contributors
  * as indicated by the @author tags. See the copyright.txt file in the
  * distribution for a full listing of individual contributors.
  *
@@ -26,48 +26,41 @@ import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.util.UUID;
-import java.util.function.Function;
+import java.util.function.BiFunction;
+import java.util.function.ToIntFunction;
 
 import org.wildfly.clustering.marshalling.Externalizer;
-import org.wildfly.clustering.marshalling.spi.DefaultExternalizer;
-import org.wildfly.common.function.ExceptionBiConsumer;
-import org.wildfly.common.function.ExceptionBiFunction;
+import org.wildfly.clustering.marshalling.spi.IndexSerializer;
 
 /**
  * @author Paul Ferraro
  */
-public class SessionKeyExternalizer<K extends SessionKey<UUID>> implements Externalizer<K> {
-
-    static final Externalizer<UUID> IDENTIFIER_EXTERNALIZER = DefaultExternalizer.UUID.cast(UUID.class);
-
+public class IndexedSessionKeyExternalizer<K extends SessionKey<UUID>> implements Externalizer<K> {
     private final Class<K> targetClass;
-    private final ExceptionBiFunction<UUID, ObjectInput, K, IOException> resolver;
-    private final ExceptionBiConsumer<K, ObjectOutput, IOException> writer;
+    private final ToIntFunction<K> index;
+    private final BiFunction<UUID, Integer, K> resolver;
 
-    public SessionKeyExternalizer(Class<K> targetClass, ExceptionBiFunction<UUID, ObjectInput, K, IOException> resolver, ExceptionBiConsumer<K, ObjectOutput, IOException> writer) {
+    protected IndexedSessionKeyExternalizer(Class<K> targetClass, ToIntFunction<K> index, BiFunction<UUID, Integer, K> resolver) {
         this.targetClass = targetClass;
+        this.index = index;
         this.resolver = resolver;
-        this.writer = writer;
-    }
-
-    public SessionKeyExternalizer(Class<K> targetClass, Function<UUID, K> resolver) {
-        this(targetClass, (id, input) -> resolver.apply(id), (key, output) -> {});
-    }
-
-    @Override
-    public void writeObject(ObjectOutput output, K key) throws IOException {
-        IDENTIFIER_EXTERNALIZER.writeObject(output, key.getId());
-        this.writer.accept(key, output);
-    }
-
-    @Override
-    public K readObject(ObjectInput input) throws IOException, ClassNotFoundException {
-        UUID id = IDENTIFIER_EXTERNALIZER.readObject(input);
-        return this.resolver.apply(id, input);
     }
 
     @Override
     public Class<K> getTargetClass() {
         return this.targetClass;
+    }
+
+    @Override
+    public K readObject(ObjectInput input) throws IOException, ClassNotFoundException {
+        UUID id = SessionKeyExternalizer.IDENTIFIER_EXTERNALIZER.readObject(input);
+        int index = IndexSerializer.VARIABLE.readInt(input);
+        return this.resolver.apply(id, index);
+    }
+
+    @Override
+    public void writeObject(ObjectOutput output, K key) throws IOException {
+        SessionKeyExternalizer.IDENTIFIER_EXTERNALIZER.writeObject(output, key.getId());
+        IndexSerializer.VARIABLE.writeInt(output, this.index.applyAsInt(key));
     }
 }

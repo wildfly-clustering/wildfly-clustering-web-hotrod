@@ -23,7 +23,8 @@ package org.wildfly.clustering.web.hotrod.session.fine;
 
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Function;
+import java.util.UUID;
+import java.util.function.IntFunction;
 
 import org.infinispan.client.hotrod.RemoteCache;
 import org.wildfly.clustering.marshalling.spi.InvalidSerializedFormException;
@@ -35,19 +36,22 @@ import org.wildfly.clustering.web.session.ImmutableSessionAttributes;
  * Exposes session attributes for fine granularity sessions.
  * @author Paul Ferraro
  */
-public class FineImmutableSessionAttributes<K, V> implements ImmutableSessionAttributes {
-    private final K key;
+public class FineImmutableSessionAttributes<V> implements ImmutableSessionAttributes, IntFunction<SessionAttributeKey> {
+    private final UUID id;
     private final Map<String, Integer> names;
-    private final RemoteCache<SessionAttributeKey<K>, V> cache;
-    private final Function<Integer, SessionAttributeKey<K>> keyFactory;
+    private final RemoteCache<SessionAttributeKey, V> cache;
     private final Marshaller<Object, V> marshaller;
 
-    public FineImmutableSessionAttributes(K key, Map<String, Integer> names, RemoteCache<SessionAttributeKey<K>, V> cache, Function<Integer, SessionAttributeKey<K>> keyFactory, Marshaller<Object, V> marshaller) {
-        this.key = key;
+    public FineImmutableSessionAttributes(UUID id, Map<String, Integer> names, RemoteCache<SessionAttributeKey, V> cache, Marshaller<Object, V> marshaller) {
+        this.id = id;
         this.names = names;
         this.cache = cache;
-        this.keyFactory = keyFactory;
         this.marshaller = marshaller;
+    }
+
+    @Override
+    public SessionAttributeKey apply(int attributeId) {
+        return new SessionAttributeKey(this.id, attributeId);
     }
 
     @Override
@@ -58,7 +62,7 @@ public class FineImmutableSessionAttributes<K, V> implements ImmutableSessionAtt
     @Override
     public Object getAttribute(String name) {
         Integer attributeId = this.names.get(name);
-        return (attributeId != null) ? this.read(name, this.cache.get(this.keyFactory.apply(attributeId))) : null;
+        return (attributeId != null) ? this.read(name, this.cache.get(this.apply(attributeId))) : null;
     }
 
     protected Object read(String name, V value) {
@@ -66,7 +70,7 @@ public class FineImmutableSessionAttributes<K, V> implements ImmutableSessionAtt
             return this.marshaller.read(value);
         } catch (InvalidSerializedFormException e) {
             // This should not happen here, since attributes were pre-activated during FineSessionFactory.findValue(...)
-            throw Logger.ROOT_LOGGER.failedToReadSessionAttribute(e, this.key.toString(), name);
+            throw Logger.ROOT_LOGGER.failedToReadSessionAttribute(e, this.id.toString(), name);
         }
     }
 }

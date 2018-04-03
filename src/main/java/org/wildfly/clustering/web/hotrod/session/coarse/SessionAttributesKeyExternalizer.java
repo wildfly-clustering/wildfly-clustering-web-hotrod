@@ -21,8 +21,6 @@
  */
 package org.wildfly.clustering.web.hotrod.session.coarse;
 
-import java.util.UUID;
-
 import org.kohsuke.MetaInfServices;
 import org.wildfly.clustering.marshalling.Externalizer;
 import org.wildfly.clustering.web.hotrod.SessionKeyExternalizer;
@@ -32,10 +30,9 @@ import org.wildfly.clustering.web.hotrod.SessionKeyExternalizer;
  * @author Paul Ferraro
  */
 @MetaInfServices(Externalizer.class)
-public class SessionAttributesKeyExternalizer extends SessionKeyExternalizer<SessionAttributesKey<UUID>> {
+public class SessionAttributesKeyExternalizer extends SessionKeyExternalizer<SessionAttributesKey> {
 
-    @SuppressWarnings("unchecked")
     public SessionAttributesKeyExternalizer() {
-        super((Class<SessionAttributesKey<UUID>>) (Class<?>) SessionAttributesKey.class, id -> new SessionAttributesKey<>(id));
+        super(SessionAttributesKey.class, SessionAttributesKey::new);
     }
 }

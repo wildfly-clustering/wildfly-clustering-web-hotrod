@@ -25,34 +25,41 @@ import java.util.UUID;
 
 import javax.servlet.ServletContext;
 
+import org.wildfly.clustering.Registrar;
 import org.wildfly.clustering.ee.Batch;
 import org.wildfly.clustering.marshalling.spi.Marshallability;
 import org.wildfly.clustering.marshalling.spi.MarshalledValueFactory;
 import org.wildfly.clustering.marshalling.spi.MarshalledValueMarshaller;
 import org.wildfly.clustering.web.IdentifierFactory;
-import org.wildfly.clustering.web.LocalContextFactory;
 import org.wildfly.clustering.web.hotrod.session.coarse.CoarseSessionAttributesFactory;
 import org.wildfly.clustering.web.hotrod.session.fine.FineSessionAttributesFactory;
 import org.wildfly.clustering.web.session.SessionExpirationListener;
 import org.wildfly.clustering.web.session.SessionManager;
 import org.wildfly.clustering.web.session.SessionManagerConfiguration;
-import org.wildfly.clustering.web.session.SessionManagerFactoryConfiguration;
 import org.wildfly.clustering.web.session.SessionManagerFactory;
+import org.wildfly.clustering.web.session.SessionManagerFactoryConfiguration;
 
 /**
  * Factory for creating session managers.
  * @author Paul Ferraro
  */
-public class HotRodSessionManagerFactory<C extends Marshallability> implements SessionManagerFactory<Batch> {
+public class HotRodSessionManagerFactory<L, C extends Marshallability> implements SessionManagerFactory<L, Batch> {
 
-    private final HotRodSessionManagerFactoryConfiguration<C> config;
+    final Registrar<SessionExpirationListener> expirationRegistrar;
+    final Scheduler expirationScheduler;
 
-    public HotRodSessionManagerFactory(HotRodSessionManagerFactoryConfiguration<C> config) {
-        this.config = config;
+    private final SessionFactory<UUID, HotRodSessionMetaData<L>, ?, L> sessionFactory;
+
+    public HotRodSessionManagerFactory(HotRodSessionManagerFactoryConfiguration<C, L> config) {
+        SessionMetaDataFactory<UUID, HotRodSessionMetaData<L>, L> metaDataFactory = new HotRodSessionMetaDataFactory<>(config.getSessionManagerFactoryConfiguration().getDeploymentName(), config.getCache());
+        this.sessionFactory = new HotRodSessionFactory<>(metaDataFactory, this.createSessionAttributesFactory(config), config.getSessionManagerFactoryConfiguration().getLocalContextFactory());
+        ExpiredSessionRemover<UUID, HotRodSessionMetaData<L>, ?, L> remover = new ExpiredSessionRemover<>(this.sessionFactory);
+        this.expirationRegistrar = remover;
+        this.expirationScheduler = new SessionExpirationScheduler(remover);
     }
 
     @Override
-    public <L> SessionManager<L, Batch> createSessionManager(final SessionManagerConfiguration<L> configuration) {
+    public SessionManager<L, Batch> createSessionManager(SessionManagerConfiguration configuration) {
         HotRodSessionManagerConfiguration config = new HotRodSessionManagerConfiguration() {
             @Override
             public SessionExpirationListener getExpirationListener() {
@@ -60,34 +67,44 @@ public class HotRodSessionManagerFactory<C extends Marshallability> implements S
             }
 
             @Override
-            public ServletContext getServletContext() {
-                return configuration.getServletContext();
+            public Registrar<SessionExpirationListener> getExpirationRegistrar() {
+                return HotRodSessionManagerFactory.this.expirationRegistrar;
+            }
+
+            @Override
+            public Scheduler getExpirationScheduler() {
+                return HotRodSessionManagerFactory.this.expirationScheduler;
             }
 
             @Override
             public IdentifierFactory<String> getIdentifierFactory() {
                 return configuration.getIdentifierFactory();
             }
+
+            @Override
+            public ServletContext getServletContext() {
+                return configuration.getServletContext();
+            }
         };
-        return new HotRodSessionManager<>(this.createSessionFactory(configuration.getLocalContextFactory()), config);
+        return new HotRodSessionManager<>(this.sessionFactory, config);
     }
 
-    private <L> SessionFactory<?, ?, ?, L> createSessionFactory(LocalContextFactory<L> localContextFactory) {
-        SessionMetaDataFactory<UUID, HotRodSessionMetaData<UUID, L>, L> metaDataFactory = new HotRodSessionMetaDataFactory<>(this.config.getSessionManagerFactoryConfiguration().getDeploymentName(), this.config.getCache());
-        return new HotRodSessionFactory<>(metaDataFactory, this.createSessionAttributesFactory(), localContextFactory);
+    @Override
+    public void close() {
+        this.expirationScheduler.close();
     }
 
-    private SessionAttributesFactory<UUID, ?> createSessionAttributesFactory() {
-        SessionManagerFactoryConfiguration<C> config = this.config.getSessionManagerFactoryConfiguration();
+    private SessionAttributesFactory<UUID, ?> createSessionAttributesFactory(HotRodSessionManagerFactoryConfiguration<C, L> configuration) {
+        SessionManagerFactoryConfiguration<C, L> config = configuration.getSessionManagerFactoryConfiguration();
         MarshalledValueFactory<C> factory = config.getMarshalledValueFactory();
         C context = config.getMarshallingContext();
 
-        switch (this.config.getSessionManagerFactoryConfiguration().getAttributePersistenceStrategy()) {
+        switch (config.getAttributePersistenceStrategy()) {
             case FINE: {
-                return new FineSessionAttributesFactory<>(this.config.getCache(), this.config.getCache(), new MarshalledValueMarshaller<>(factory, context));
+                return new FineSessionAttributesFactory<>(configuration.getCache(), configuration.getCache(), new MarshalledValueMarshaller<>(factory, context));
             }
             case COARSE: {
-                return new CoarseSessionAttributesFactory<>(this.config.getCache(), new MarshalledValueMarshaller<>(factory, context));
+                return new CoarseSessionAttributesFactory<>(configuration.getCache(), new MarshalledValueMarshaller<>(factory, context));
             }
             default: {
                 // Impossible

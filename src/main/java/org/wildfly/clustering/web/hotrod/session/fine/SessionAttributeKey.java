@@ -21,17 +21,20 @@
  */
 package org.wildfly.clustering.web.hotrod.session.fine;
 
+import java.util.Objects;
+import java.util.UUID;
+
 import org.wildfly.clustering.web.hotrod.SessionKey;
 
 /**
  * Cache key for session attributes.
  * @author Paul Ferraro
  */
-public class SessionAttributeKey<K> extends SessionKey<K> {
+public class SessionAttributeKey extends SessionKey<UUID> {
 
     private final int attributeId;
 
-    public SessionAttributeKey(K id, int attributeId) {
+    public SessionAttributeKey(UUID id, int attributeId) {
         super(id);
         this.attributeId = attributeId;
     }
@@ -42,13 +45,12 @@ public class SessionAttributeKey<K> extends SessionKey<K> {
 
     @Override
     public int hashCode() {
-        return (31 * super.hashCode()) + this.attributeId;
+        return Objects.hash(this.getId(), this.attributeId);
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     public boolean equals(Object object) {
-        return super.equals(object) && (object instanceof SessionAttributeKey) && (this.attributeId == ((SessionAttributeKey<K>) object).attributeId);
+        return super.equals(object) && (this.attributeId == ((SessionAttributeKey) object).attributeId);
     }
 
     @Override
