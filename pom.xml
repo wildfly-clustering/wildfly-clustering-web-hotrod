@@ -46,6 +46,11 @@
     <dependencies>
         <dependency>
             <groupId>org.wildfly</groupId>
+            <artifactId>wildfly-clustering-api</artifactId>
+            <version>${project.parent.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.wildfly</groupId>
             <artifactId>wildfly-clustering-ee-hotrod</artifactId>
             <version>${project.parent.version}</version>
         </dependency>
