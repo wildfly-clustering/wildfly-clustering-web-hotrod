@@ -27,7 +27,7 @@
     <parent>
         <groupId>org.wildfly</groupId>
         <artifactId>wildfly-parent</artifactId>
-        <version>14.0.0.Final</version>
+        <version>15.0.0.Final</version>
     </parent>
 
     <artifactId>wildfly-clustering-web-hotrod</artifactId>

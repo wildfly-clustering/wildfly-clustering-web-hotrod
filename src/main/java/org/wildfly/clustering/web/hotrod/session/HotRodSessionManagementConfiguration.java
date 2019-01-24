@@ -22,14 +22,13 @@
 
 package org.wildfly.clustering.web.hotrod.session;
 
-import org.wildfly.clustering.web.hotrod.HotRodConfiguration;
 import org.wildfly.clustering.web.session.SessionManagerFactoryConfiguration.SessionAttributePersistenceStrategy;
 
 /**
  * Configuration of an {@link InfinispanSessionManagementProvider}.
  * @author Paul Ferraro
  */
-public interface HotRodSessionManagementConfiguration extends HotRodConfiguration {
+public interface HotRodSessionManagementConfiguration {
 
     SessionAttributePersistenceStrategy getAttributePersistenceStrategy();
 }
