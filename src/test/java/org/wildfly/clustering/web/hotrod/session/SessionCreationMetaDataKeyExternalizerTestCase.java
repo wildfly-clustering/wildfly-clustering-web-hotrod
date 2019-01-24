@@ -35,7 +35,7 @@ public class SessionCreationMetaDataKeyExternalizerTestCase {
 
     @Test
     public void test() throws ClassNotFoundException, IOException {
-        SessionCreationMetaDataKey key = new SessionCreationMetaDataKey("test.war", "ABC123");
+        SessionCreationMetaDataKey key = new SessionCreationMetaDataKey("ABC123");
         new ExternalizerTester<>(new SessionCreationMetaDataKeyExternalizer()).test(key);
     }
 }

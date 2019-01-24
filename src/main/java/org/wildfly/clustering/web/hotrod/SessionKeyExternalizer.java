@@ -25,45 +25,34 @@ package org.wildfly.clustering.web.hotrod;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
-import java.util.UUID;
 import java.util.function.Function;
 
+import org.wildfly.clustering.infinispan.client.Key;
 import org.wildfly.clustering.marshalling.Externalizer;
-import org.wildfly.clustering.marshalling.spi.DefaultExternalizer;
-import org.wildfly.common.function.ExceptionBiConsumer;
-import org.wildfly.common.function.ExceptionBiFunction;
+import org.wildfly.clustering.web.cache.SessionIdentifierSerializer;
 
 /**
  * @author Paul Ferraro
  */
-public class SessionKeyExternalizer<K extends SessionKey<UUID>> implements Externalizer<K> {
-
-    static final Externalizer<UUID> IDENTIFIER_EXTERNALIZER = DefaultExternalizer.UUID.cast(UUID.class);
+public class SessionKeyExternalizer<K extends Key<String>> implements Externalizer<K> {
 
     private final Class<K> targetClass;
-    private final ExceptionBiFunction<UUID, ObjectInput, K, IOException> resolver;
-    private final ExceptionBiConsumer<K, ObjectOutput, IOException> writer;
+    private final Function<String, K> resolver;
 
-    public SessionKeyExternalizer(Class<K> targetClass, ExceptionBiFunction<UUID, ObjectInput, K, IOException> resolver, ExceptionBiConsumer<K, ObjectOutput, IOException> writer) {
+    public SessionKeyExternalizer(Class<K> targetClass, Function<String, K> resolver) {
         this.targetClass = targetClass;
         this.resolver = resolver;
-        this.writer = writer;
-    }
-
-    public SessionKeyExternalizer(Class<K> targetClass, Function<UUID, K> resolver) {
-        this(targetClass, (id, input) -> resolver.apply(id), (key, output) -> {});
     }
 
     @Override
     public void writeObject(ObjectOutput output, K key) throws IOException {
-        IDENTIFIER_EXTERNALIZER.writeObject(output, key.getId());
-        this.writer.accept(key, output);
+        SessionIdentifierSerializer.INSTANCE.write(output, key.getId());
     }
 
     @Override
     public K readObject(ObjectInput input) throws IOException, ClassNotFoundException {
-        UUID id = IDENTIFIER_EXTERNALIZER.readObject(input);
-        return this.resolver.apply(id, input);
+        String id = SessionIdentifierSerializer.INSTANCE.read(input);
+        return this.resolver.apply(id);
     }
 
     @Override

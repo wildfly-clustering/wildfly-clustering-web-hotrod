@@ -22,24 +22,18 @@
 
 package org.wildfly.clustering.web.hotrod.session.fine;
 
-import java.util.AbstractMap;
+import java.util.Collections;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
 
 import org.infinispan.client.hotrod.Flag;
 import org.infinispan.client.hotrod.RemoteCache;
-import org.wildfly.clustering.ee.Mutator;
-import org.wildfly.clustering.ee.hotrod.RemoteCacheEntryMutator;
+import org.wildfly.clustering.ee.cache.CacheProperties;
 import org.wildfly.clustering.marshalling.spi.InvalidSerializedFormException;
 import org.wildfly.clustering.marshalling.spi.Marshaller;
+import org.wildfly.clustering.web.cache.session.SessionAttributes;
+import org.wildfly.clustering.web.cache.session.SessionAttributesFactory;
 import org.wildfly.clustering.web.hotrod.Logger;
-import org.wildfly.clustering.web.hotrod.session.SessionAttributes;
-import org.wildfly.clustering.web.hotrod.session.SessionAttributesFactory;
 import org.wildfly.clustering.web.session.ImmutableSessionAttributes;
 
 /**
@@ -48,71 +42,67 @@ import org.wildfly.clustering.web.session.ImmutableSessionAttributes;
  * A separate cache entry stores the activate attribute names for the session.
  * @author Paul Ferraro
  */
-public class FineSessionAttributesFactory<V> implements SessionAttributesFactory<UUID, SessionAttributeNamesEntry> {
+public class FineSessionAttributesFactory<V> implements SessionAttributesFactory<Map<String, UUID>> {
 
-    private final RemoteCache<SessionAttributeNamesKey, SessionAttributeNamesEntry> namesCache;
+    private final RemoteCache<SessionAttributeNamesKey, Map<String, UUID>> namesCache;
     private final RemoteCache<SessionAttributeKey, V> attributeCache;
     private final Marshaller<Object, V> marshaller;
+    private final CacheProperties properties;
 
-    public FineSessionAttributesFactory(RemoteCache<SessionAttributeNamesKey, SessionAttributeNamesEntry> namesCache, RemoteCache<SessionAttributeKey, V> attributeCache, Marshaller<Object, V> marshaller) {
+    public FineSessionAttributesFactory(RemoteCache<SessionAttributeNamesKey, Map<String, UUID>> namesCache, RemoteCache<SessionAttributeKey, V> attributeCache, Marshaller<Object, V> marshaller, CacheProperties properties) {
         this.namesCache = namesCache;
         this.attributeCache = attributeCache;
         this.marshaller = marshaller;
+        this.properties = properties;
     }
 
     @Override
-    public SessionAttributeNamesEntry createValue(UUID id, Void context) {
-        SessionAttributeNamesEntry entry = new SessionAttributeNamesEntry(new AtomicInteger(), new ConcurrentHashMap<>());
-        this.namesCache.put(new SessionAttributeNamesKey(id), entry);
-        return entry;
+    public Map<String, UUID> createValue(String id, Void context) {
+        return Collections.emptyMap();
     }
 
     @Override
-    public SessionAttributeNamesEntry findValue(UUID id) {
-        SessionAttributeNamesEntry entry = this.namesCache.get(new SessionAttributeNamesKey(id));
-        if (entry != null) {
-            ConcurrentMap<String, Integer> names = entry.getNames();
-            Map<SessionAttributeKey, V> attributes = this.attributeCache.getAll(names.values().stream().map(attributeId -> new SessionAttributeKey(id, attributeId)).collect(Collectors.toSet()));
-            Predicate<Map.Entry<String, V>> invalidAttribute = attribute -> {
-                V value = attribute.getValue();
-                if (value == null) {
-                    Logger.ROOT_LOGGER.missingSessionAttributeCacheEntry(id.toString(), attribute.getKey());
-                    return true;
+    public Map<String, UUID> findValue(String id) {
+        Map<String, UUID> names = this.namesCache.get(new SessionAttributeNamesKey(id));
+        if (names != null) {
+            for (Map.Entry<String, UUID> nameEntry : names.entrySet()) {
+                V value = this.attributeCache.get(new SessionAttributeKey(id, nameEntry.getValue()));
+                if (value != null) {
+                    try {
+                        this.marshaller.read(value);
+                        continue;
+                    } catch (InvalidSerializedFormException e) {
+                        Logger.ROOT_LOGGER.failedToActivateSessionAttribute(e, id, nameEntry.getKey());
+                    }
+                } else {
+                    Logger.ROOT_LOGGER.missingSessionAttributeCacheEntry(id, nameEntry.getKey());
                 }
-                try {
-                    this.marshaller.read(attribute.getValue());
-                    return false;
-                } catch (InvalidSerializedFormException e) {
-                    Logger.ROOT_LOGGER.failedToActivateSessionAttribute(e, id.toString(), attribute.getKey());
-                    return true;
-                }
-            };
-            if (names.entrySet().stream().map(name -> new AbstractMap.SimpleImmutableEntry<>(name.getKey(), attributes.get(new SessionAttributeKey(id, name.getValue())))).anyMatch(invalidAttribute)) {
-                // If any attributes are invalid - remove them all
                 this.remove(id);
                 return null;
             }
+            return names;
         }
-        return entry;
+        return Collections.emptyMap();
     }
 
     @Override
-    public boolean remove(UUID id) {
-        SessionAttributeNamesEntry entry = this.namesCache.withFlags(Flag.FORCE_RETURN_VALUE).remove(new SessionAttributeNamesKey(id));
-        if (entry == null) return false;
-        entry.getNames().values().forEach(attributeId -> this.attributeCache.remove(new SessionAttributeKey(id, attributeId)));
+    public boolean remove(String id) {
+        Map<String, UUID> names = this.namesCache.withFlags(Flag.FORCE_RETURN_VALUE).remove(new SessionAttributeNamesKey(id));
+        if (names != null) {
+            for (UUID attributeId : names.values()) {
+                this.attributeCache.remove(new SessionAttributeKey(id, attributeId));
+            }
+        }
         return true;
     }
 
     @Override
-    public SessionAttributes createSessionAttributes(UUID id, SessionAttributeNamesEntry entry) {
-        SessionAttributeNamesKey key = new SessionAttributeNamesKey(id);
-        Mutator mutator = new RemoteCacheEntryMutator<>(this.namesCache, key, entry);
-        return new FineSessionAttributes<>(id, entry.getSequence(), entry.getNames(), mutator, this.attributeCache, this.marshaller);
+    public SessionAttributes createSessionAttributes(String id, Map<String, UUID> names) {
+        return new FineSessionAttributes<>(id, names, this.namesCache, this.attributeCache, this.marshaller, this.properties);
     }
 
     @Override
-    public ImmutableSessionAttributes createImmutableSessionAttributes(UUID id, SessionAttributeNamesEntry entry) {
-        return new FineImmutableSessionAttributes<>(id, entry.getNames(), this.attributeCache, this.marshaller);
+    public ImmutableSessionAttributes createImmutableSessionAttributes(String id, Map<String, UUID> names) {
+        return new FineImmutableSessionAttributes<>(id, names, this.attributeCache, this.marshaller);
     }
 }

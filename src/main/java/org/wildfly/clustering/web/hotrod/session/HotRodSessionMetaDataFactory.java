@@ -22,51 +22,61 @@
 
 package org.wildfly.clustering.web.hotrod.session;
 
-import java.util.UUID;
+import java.time.Duration;
 
 import org.infinispan.client.hotrod.Flag;
 import org.infinispan.client.hotrod.MetadataValue;
 import org.infinispan.client.hotrod.RemoteCache;
 import org.wildfly.clustering.ee.Mutator;
+import org.wildfly.clustering.ee.cache.CacheProperties;
 import org.wildfly.clustering.ee.hotrod.RemoteCacheEntryMutator;
+import org.wildfly.clustering.web.cache.session.CompositeSessionMetaData;
+import org.wildfly.clustering.web.cache.session.CompositeSessionMetaDataEntry;
+import org.wildfly.clustering.web.cache.session.InvalidatableSessionMetaData;
+import org.wildfly.clustering.web.cache.session.SessionAccessMetaData;
+import org.wildfly.clustering.web.cache.session.SessionCreationMetaData;
+import org.wildfly.clustering.web.cache.session.SessionCreationMetaDataEntry;
+import org.wildfly.clustering.web.cache.session.SessionMetaDataFactory;
+import org.wildfly.clustering.web.cache.session.SimpleSessionAccessMetaData;
+import org.wildfly.clustering.web.cache.session.SimpleSessionCreationMetaData;
 import org.wildfly.clustering.web.session.ImmutableSessionMetaData;
 
 /**
  * @author Paul Ferraro
  */
-public class HotRodSessionMetaDataFactory<L> implements SessionMetaDataFactory<UUID, HotRodSessionMetaData<L>, L> {
+public class HotRodSessionMetaDataFactory<L> implements SessionMetaDataFactory<CompositeSessionMetaDataEntry<L>, L> {
 
     private final RemoteCache<SessionCreationMetaDataKey, SessionCreationMetaDataEntry<L>> creationMetaDataCache;
     private final RemoteCache<SessionAccessMetaDataKey, SessionAccessMetaData> accessMetaDataCache;
-    private final String deployment;
+    private final CacheProperties properties;
 
     @SuppressWarnings("unchecked")
-    public HotRodSessionMetaDataFactory(String deployment, RemoteCache<?, ?> cache) {
+    public HotRodSessionMetaDataFactory(RemoteCache<?, ?> cache, CacheProperties properties) {
         this.creationMetaDataCache = (RemoteCache<SessionCreationMetaDataKey, SessionCreationMetaDataEntry<L>>) cache;
         this.accessMetaDataCache = (RemoteCache<SessionAccessMetaDataKey, SessionAccessMetaData>) cache;
-        this.deployment = deployment;
+        this.properties = properties;
     }
 
     @Override
-    public HotRodSessionMetaData<L> createValue(String id, Void context) {
-        SessionCreationMetaDataEntry<L> creationMetaDataEntry = new SessionCreationMetaDataEntry<>(UUID.randomUUID(), new SimpleSessionCreationMetaData());
-        if (this.creationMetaDataCache.withFlags(Flag.FORCE_RETURN_VALUE).putIfAbsent(new SessionCreationMetaDataKey(this.deployment, id), creationMetaDataEntry) != null) {
+    public CompositeSessionMetaDataEntry<L> createValue(String id, Void context) {
+        SessionCreationMetaDataEntry<L> creationMetaDataEntry = new SessionCreationMetaDataEntry<>(new SimpleSessionCreationMetaData());
+        if (this.creationMetaDataCache.withFlags(Flag.FORCE_RETURN_VALUE).putIfAbsent(new SessionCreationMetaDataKey(id), creationMetaDataEntry) != null) {
             return null;
         }
         SessionAccessMetaData accessMetaData = new SimpleSessionAccessMetaData();
-        this.accessMetaDataCache.put(new SessionAccessMetaDataKey(creationMetaDataEntry.getId()), accessMetaData);
-        return new HotRodSessionMetaData<>(creationMetaDataEntry, accessMetaData);
+        this.accessMetaDataCache.put(new SessionAccessMetaDataKey(id), accessMetaData);
+        return new CompositeSessionMetaDataEntry<>(creationMetaDataEntry.getMetaData(), accessMetaData, creationMetaDataEntry.getLocalContext());
     }
 
     @Override
-    public HotRodSessionMetaData<L> findValue(String id) {
-        SessionCreationMetaDataKey key = new SessionCreationMetaDataKey(this.deployment, id);
+    public CompositeSessionMetaDataEntry<L> findValue(String id) {
+        SessionCreationMetaDataKey key = new SessionCreationMetaDataKey(id);
         MetadataValue<SessionCreationMetaDataEntry<L>> value = this.creationMetaDataCache.getWithMetadata(key);
         SessionCreationMetaDataEntry<L> creationMetaDataEntry = this.creationMetaDataCache.get(key);
         if (creationMetaDataEntry != null) {
-            SessionAccessMetaData accessMetaData = this.accessMetaDataCache.get(new SessionAccessMetaDataKey(creationMetaDataEntry.getId()));
+            SessionAccessMetaData accessMetaData = this.accessMetaDataCache.get(new SessionAccessMetaDataKey(id));
             if (accessMetaData != null) {
-                return new HotRodSessionMetaData<>(creationMetaDataEntry, accessMetaData);
+                return new CompositeSessionMetaDataEntry<>(creationMetaDataEntry.getMetaData(), accessMetaData, creationMetaDataEntry.getLocalContext());
             }
             this.creationMetaDataCache.removeWithVersion(key, value.getVersion());
         }
@@ -74,30 +84,30 @@ public class HotRodSessionMetaDataFactory<L> implements SessionMetaDataFactory<U
     }
 
     @Override
-    public InvalidatableSessionMetaData createSessionMetaData(String id, HotRodSessionMetaData<L> entry) {
-        SessionCreationMetaDataKey creationMetaDataKey = new SessionCreationMetaDataKey(this.deployment, id);
-        Mutator creationMutator = new RemoteCacheEntryMutator<>(this.creationMetaDataCache, creationMetaDataKey, new SessionCreationMetaDataEntry<>(entry));
+    public InvalidatableSessionMetaData createSessionMetaData(String id, CompositeSessionMetaDataEntry<L> entry) {
+        SessionCreationMetaDataKey creationMetaDataKey = new SessionCreationMetaDataKey(id);
+        boolean created = entry.getAccessMetaData().getLastAccessedDuration() == Duration.ZERO;
+        Mutator creationMutator = this.properties.isTransactional() && created ? Mutator.PASSIVE : new RemoteCacheEntryMutator<>(this.creationMetaDataCache, creationMetaDataKey, new SessionCreationMetaDataEntry<>(entry.getCreationMetaData(), entry.getLocalContext()));
         SessionCreationMetaData creationMetaData = new MutableSessionCreationMetaData(entry.getCreationMetaData(), creationMutator);
 
-        SessionAccessMetaDataKey accessMetaDataKey = new SessionAccessMetaDataKey(entry.getId());
-        Mutator accessMutator = new RemoteCacheEntryMutator<>(this.accessMetaDataCache, accessMetaDataKey, entry.getAccessMetaData());
+        SessionAccessMetaDataKey accessMetaDataKey = new SessionAccessMetaDataKey(id);
+        Mutator accessMutator = this.properties.isTransactional() && created ? Mutator.PASSIVE : new RemoteCacheEntryMutator<>(this.accessMetaDataCache, accessMetaDataKey, entry.getAccessMetaData());
         SessionAccessMetaData accessMetaData = new MutableSessionAccessMetaData(entry.getAccessMetaData(), accessMutator);
 
-        return new SimpleSessionMetaData(creationMetaData, accessMetaData);
+        return new CompositeSessionMetaData(creationMetaData, accessMetaData);
     }
 
     @Override
-    public ImmutableSessionMetaData createImmutableSessionMetaData(String id, HotRodSessionMetaData<L> entry) {
-        return new SimpleSessionMetaData(entry.getCreationMetaData(), entry.getAccessMetaData());
+    public ImmutableSessionMetaData createImmutableSessionMetaData(String id, CompositeSessionMetaDataEntry<L> entry) {
+        return new CompositeSessionMetaData(entry.getCreationMetaData(), entry.getAccessMetaData());
     }
 
     @Override
-    public UUID remove(String id) {
-        SessionCreationMetaDataKey key = new SessionCreationMetaDataKey(this.deployment, id);
+    public boolean remove(String id) {
+        SessionCreationMetaDataKey key = new SessionCreationMetaDataKey(id);
         SessionCreationMetaDataEntry<L> creationMetaData = this.creationMetaDataCache.withFlags(Flag.FORCE_RETURN_VALUE).remove(key);
-        if (creationMetaData == null) return null;
-        UUID uuid = creationMetaData.getId();
-        this.accessMetaDataCache.remove(new SessionAccessMetaDataKey(uuid));
-        return uuid;
+        if (creationMetaData == null) return false;
+        this.accessMetaDataCache.remove(new SessionAccessMetaDataKey(id));
+        return true;
     }
 }

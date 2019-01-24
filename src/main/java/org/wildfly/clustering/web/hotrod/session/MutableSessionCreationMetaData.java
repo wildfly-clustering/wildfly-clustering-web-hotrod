@@ -26,6 +26,7 @@ import java.time.Duration;
 import java.time.Instant;
 
 import org.wildfly.clustering.ee.Mutator;
+import org.wildfly.clustering.web.cache.session.SessionCreationMetaData;
 
 /**
  * @author Paul Ferraro

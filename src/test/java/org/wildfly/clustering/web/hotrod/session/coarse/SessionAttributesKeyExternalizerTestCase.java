@@ -23,7 +23,6 @@
 package org.wildfly.clustering.web.hotrod.session.coarse;
 
 import java.io.IOException;
-import java.util.UUID;
 
 import org.junit.Test;
 import org.wildfly.clustering.marshalling.ExternalizerTester;
@@ -36,7 +35,7 @@ public class SessionAttributesKeyExternalizerTestCase {
 
     @Test
     public void test() throws ClassNotFoundException, IOException {
-        SessionAttributesKey key = new SessionAttributesKey(UUID.randomUUID());
+        SessionAttributesKey key = new SessionAttributesKey("test");
         new ExternalizerTester<>(new SessionAttributesKeyExternalizer()).test(key);
     }
 }

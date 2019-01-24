@@ -28,6 +28,8 @@ import java.time.Duration;
 import org.junit.Assert;
 import org.junit.Test;
 import org.wildfly.clustering.marshalling.ExternalizerTester;
+import org.wildfly.clustering.web.cache.session.SessionAccessMetaDataExternalizer;
+import org.wildfly.clustering.web.cache.session.SimpleSessionAccessMetaData;
 
 /**
  * Unit test for {@link SessionAccessMetaDataExternalizer}.

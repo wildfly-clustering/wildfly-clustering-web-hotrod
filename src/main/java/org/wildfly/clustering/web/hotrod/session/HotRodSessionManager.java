@@ -24,6 +24,7 @@ package org.wildfly.clustering.web.hotrod.session;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -33,11 +34,11 @@ import javax.servlet.http.HttpSessionEvent;
 
 import org.wildfly.clustering.Registrar;
 import org.wildfly.clustering.Registration;
-import org.wildfly.clustering.ee.Batch;
 import org.wildfly.clustering.ee.Batcher;
-import org.wildfly.clustering.ee.hotrod.HotRodBatcher;
+import org.wildfly.clustering.ee.cache.tx.TransactionBatch;
 import org.wildfly.clustering.web.IdentifierFactory;
-import org.wildfly.clustering.web.hotrod.Identified;
+import org.wildfly.clustering.web.cache.session.SessionFactory;
+import org.wildfly.clustering.web.cache.session.SimpleImmutableSession;
 import org.wildfly.clustering.web.hotrod.Logger;
 import org.wildfly.clustering.web.session.ImmutableHttpSessionAdapter;
 import org.wildfly.clustering.web.session.ImmutableSession;
@@ -52,24 +53,26 @@ import org.wildfly.clustering.web.session.SessionMetaData;
  * Generic HotRod-based session manager implementation - independent of cache mapping strategy.
  * @author Paul Ferraro
  */
-public class HotRodSessionManager<K, MV extends Identified<K>, AV, L> implements SessionManager<L, Batch> {
+public class HotRodSessionManager<MV, AV, L> implements SessionManager<L, TransactionBatch> {
     private final Registrar<SessionExpirationListener> expirationRegistrar;
     private final SessionExpirationListener expirationListener;
     private final Scheduler expirationScheduler;
-    private final SessionFactory<K, MV, AV, L> factory;
+    private final SessionFactory<MV, AV, L> factory;
     private final IdentifierFactory<String> identifierFactory;
-    private volatile Duration defaultMaxInactiveInterval = Duration.ofMinutes(30L);
     private final ServletContext context;
+    private final Batcher<TransactionBatch> batcher;
 
+    private volatile Duration defaultMaxInactiveInterval = Duration.ofMinutes(30L);
     private volatile Registration expirationRegistration;
 
-    public HotRodSessionManager(SessionFactory<K, MV, AV, L> factory, HotRodSessionManagerConfiguration configuration) {
+    public HotRodSessionManager(SessionFactory<MV, AV, L> factory, HotRodSessionManagerConfiguration configuration) {
         this.factory = factory;
         this.expirationRegistrar = configuration.getExpirationRegistrar();
         this.expirationListener = configuration.getExpirationListener();
         this.expirationScheduler = configuration.getExpirationScheduler();
         this.context = configuration.getServletContext();
         this.identifierFactory = configuration.getIdentifierFactory();
+        this.batcher = configuration.getBatcher();
     }
 
     @Override
@@ -83,8 +86,8 @@ public class HotRodSessionManager<K, MV extends Identified<K>, AV, L> implements
     }
 
     @Override
-    public Batcher<Batch> getBatcher() {
-        return HotRodBatcher.INSTANCE;
+    public Batcher<TransactionBatch> getBatcher() {
+        return this.batcher;
     }
 
     @Override
@@ -104,7 +107,7 @@ public class HotRodSessionManager<K, MV extends Identified<K>, AV, L> implements
 
     @Override
     public Session<L> findSession(String id) {
-        SessionEntry<K, MV, AV> entry = this.factory.findValue(id);
+        Map.Entry<MV, AV> entry = this.factory.findValue(id);
         if (entry == null) {
             Logger.ROOT_LOGGER.tracef("Session %s not found", id);
             return null;
@@ -123,7 +126,7 @@ public class HotRodSessionManager<K, MV extends Identified<K>, AV, L> implements
 
     @Override
     public Session<L> createSession(String id) {
-        SessionEntry<K, MV, AV> entry = this.factory.createValue(id, null);
+        Map.Entry<MV, AV> entry = this.factory.createValue(id, null);
         if (entry == null) return null;
         Session<L> session = this.factory.createSession(id, entry);
         session.getMetaData().setMaxInactiveInterval(this.defaultMaxInactiveInterval);
@@ -132,7 +135,7 @@ public class HotRodSessionManager<K, MV extends Identified<K>, AV, L> implements
 
     @Override
     public ImmutableSession viewSession(String id) {
-        SessionEntry<K, MV, AV> entry = this.factory.findValue(id);
+        Map.Entry<MV, AV> entry = this.factory.findValue(id);
         return (entry != null) ? new SimpleImmutableSession(this.factory.createImmutableSession(id, entry)) : null;
     }
 

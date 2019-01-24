@@ -21,18 +21,38 @@
  */
 package org.wildfly.clustering.web.hotrod.session.fine;
 
+import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectOutput;
+import java.util.UUID;
+
 import org.kohsuke.MetaInfServices;
 import org.wildfly.clustering.marshalling.Externalizer;
-import org.wildfly.clustering.web.hotrod.IndexedSessionKeyExternalizer;
+import org.wildfly.clustering.marshalling.spi.DefaultExternalizer;
+import org.wildfly.clustering.web.cache.SessionIdentifierSerializer;
 
 /**
  * Externalizer for a {@link SessionAttributeKey}.
  * @author Paul Ferraro
  */
 @MetaInfServices(Externalizer.class)
-public class SessionAttributeKeyExternalizer extends IndexedSessionKeyExternalizer<SessionAttributeKey> {
+public class SessionAttributeKeyExternalizer implements Externalizer<SessionAttributeKey> {
 
-    public SessionAttributeKeyExternalizer() {
-        super(SessionAttributeKey.class, SessionAttributeKey::getAttributeId, SessionAttributeKey::new);
+    @Override
+    public void writeObject(ObjectOutput output, SessionAttributeKey key) throws IOException {
+        SessionIdentifierSerializer.INSTANCE.write(output, key.getId());
+        DefaultExternalizer.UUID.cast(UUID.class).writeObject(output, key.getAttributeId());
+    }
+
+    @Override
+    public SessionAttributeKey readObject(ObjectInput input) throws IOException, ClassNotFoundException {
+        String id = SessionIdentifierSerializer.INSTANCE.read(input);
+        UUID attributeId = DefaultExternalizer.UUID.cast(UUID.class).readObject(input);
+        return new SessionAttributeKey(id, attributeId);
+    }
+
+    @Override
+    public Class<SessionAttributeKey> getTargetClass() {
+        return SessionAttributeKey.class;
     }
 }

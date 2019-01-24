@@ -25,11 +25,14 @@ package org.wildfly.clustering.web.hotrod.session;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.UUID;
 
 import org.junit.Assert;
 import org.junit.Test;
 import org.wildfly.clustering.marshalling.ExternalizerTester;
+import org.wildfly.clustering.web.cache.session.SessionCreationMetaData;
+import org.wildfly.clustering.web.cache.session.SessionCreationMetaDataEntry;
+import org.wildfly.clustering.web.cache.session.SessionCreationMetaDataEntryExternalizer;
+import org.wildfly.clustering.web.cache.session.SimpleSessionCreationMetaData;
 
 /**
  * Unit test for {@link SessionCreationMetaDataEntryExternalizer}.
@@ -41,13 +44,12 @@ public class SessionCreationMetaDataEntryExternalizerTestCase {
     public void test() throws ClassNotFoundException, IOException {
         SessionCreationMetaData metaData = new SimpleSessionCreationMetaData(Instant.now());
         metaData.setMaxInactiveInterval(Duration.ofMinutes(10));
-        SessionCreationMetaDataEntry<Object> entry = new SessionCreationMetaDataEntry<>(UUID.randomUUID(), metaData);
+        SessionCreationMetaDataEntry<Object> entry = new SessionCreationMetaDataEntry<>(metaData);
 
         new ExternalizerTester<>(new SessionCreationMetaDataEntryExternalizer(), SessionCreationMetaDataEntryExternalizerTestCase::assertEquals).test(entry);
     }
 
     static void assertEquals(SessionCreationMetaDataEntry<Object> entry1, SessionCreationMetaDataEntry<Object> entry2) {
-        Assert.assertEquals(entry1.getId(), entry2.getId());
         Assert.assertEquals(entry1.getMetaData().getCreationTime(), entry2.getMetaData().getCreationTime());
         Assert.assertEquals(entry1.getMetaData().getMaxInactiveInterval(), entry2.getMetaData().getMaxInactiveInterval());
     }
