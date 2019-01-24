@@ -24,6 +24,8 @@ package org.wildfly.clustering.web.hotrod.session;
 import javax.servlet.ServletContext;
 
 import org.wildfly.clustering.Registrar;
+import org.wildfly.clustering.ee.Batcher;
+import org.wildfly.clustering.ee.cache.tx.TransactionBatch;
 import org.wildfly.clustering.web.IdentifierFactory;
 import org.wildfly.clustering.web.session.SessionExpirationListener;
 
@@ -37,4 +39,5 @@ public interface HotRodSessionManagerConfiguration {
     Registrar<SessionExpirationListener> getExpirationRegistrar();
     Scheduler getExpirationScheduler();
     IdentifierFactory<String> getIdentifierFactory();
+    Batcher<TransactionBatch> getBatcher();
 }

@@ -27,7 +27,7 @@ import java.util.concurrent.CopyOnWriteArraySet;
 import org.wildfly.clustering.Registrar;
 import org.wildfly.clustering.Registration;
 import org.wildfly.clustering.ee.Remover;
-import org.wildfly.clustering.web.hotrod.Identified;
+import org.wildfly.clustering.web.cache.session.SessionFactory;
 import org.wildfly.clustering.web.hotrod.Logger;
 import org.wildfly.clustering.web.session.ImmutableSession;
 import org.wildfly.clustering.web.session.ImmutableSessionAttributes;
@@ -38,12 +38,12 @@ import org.wildfly.clustering.web.session.SessionExpirationListener;
  * Session remover that removes a session if and only if it is expired.
  * @author Paul Ferraro
  */
-public class ExpiredSessionRemover<K, MV extends Identified<K>, AV, L> implements Remover<String>, Registrar<SessionExpirationListener> {
+public class ExpiredSessionRemover<MV, AV, L> implements Remover<String>, Registrar<SessionExpirationListener> {
 
-    private final SessionFactory<K, MV, AV, L> factory;
+    private final SessionFactory<MV, AV, L> factory;
     private final Collection<SessionExpirationListener> listeners = new CopyOnWriteArraySet<>();
 
-    public ExpiredSessionRemover(SessionFactory<K, MV, AV, L> factory) {
+    public ExpiredSessionRemover(SessionFactory<MV, AV, L> factory) {
         this.factory = factory;
     }
 
@@ -53,10 +53,9 @@ public class ExpiredSessionRemover<K, MV extends Identified<K>, AV, L> implement
         if (metaDataValue != null) {
             ImmutableSessionMetaData metaData = this.factory.getMetaDataFactory().createImmutableSessionMetaData(id, metaDataValue);
             if (metaData.isExpired()) {
-                K key = metaDataValue.getId();
-                AV attributesValue = this.factory.getAttributesFactory().findValue(key);
+                AV attributesValue = this.factory.getAttributesFactory().findValue(id);
                 if (attributesValue != null) {
-                    ImmutableSessionAttributes attributes = this.factory.getAttributesFactory().createImmutableSessionAttributes(key, attributesValue);
+                    ImmutableSessionAttributes attributes = this.factory.getAttributesFactory().createImmutableSessionAttributes(id, attributesValue);
                     ImmutableSession session = this.factory.createImmutableSession(id, metaData, attributes);
                     Logger.ROOT_LOGGER.tracef("Session %s has expired.", id);
                     for (SessionExpirationListener listener : this.listeners) {

@@ -21,45 +21,53 @@
  */
 package org.wildfly.clustering.web.hotrod.session;
 
-import java.util.UUID;
-
 import javax.servlet.ServletContext;
 
 import org.wildfly.clustering.Registrar;
-import org.wildfly.clustering.ee.Batch;
+import org.wildfly.clustering.ee.Batcher;
+import org.wildfly.clustering.ee.cache.CacheProperties;
+import org.wildfly.clustering.ee.cache.tx.TransactionBatch;
+import org.wildfly.clustering.ee.hotrod.RemoteCacheManagerProperties;
+import org.wildfly.clustering.ee.hotrod.tx.HotRodBatcher;
 import org.wildfly.clustering.marshalling.spi.Marshallability;
 import org.wildfly.clustering.marshalling.spi.MarshalledValueFactory;
 import org.wildfly.clustering.marshalling.spi.MarshalledValueMarshaller;
 import org.wildfly.clustering.web.IdentifierFactory;
+import org.wildfly.clustering.web.cache.session.CompositeSessionFactory;
+import org.wildfly.clustering.web.cache.session.CompositeSessionMetaDataEntry;
+import org.wildfly.clustering.web.cache.session.SessionAttributesFactory;
+import org.wildfly.clustering.web.cache.session.SessionFactory;
+import org.wildfly.clustering.web.cache.session.SessionMetaDataFactory;
 import org.wildfly.clustering.web.hotrod.session.coarse.CoarseSessionAttributesFactory;
 import org.wildfly.clustering.web.hotrod.session.fine.FineSessionAttributesFactory;
 import org.wildfly.clustering.web.session.SessionExpirationListener;
 import org.wildfly.clustering.web.session.SessionManager;
 import org.wildfly.clustering.web.session.SessionManagerConfiguration;
 import org.wildfly.clustering.web.session.SessionManagerFactory;
-import org.wildfly.clustering.web.session.SessionManagerFactoryConfiguration;
 
 /**
  * Factory for creating session managers.
  * @author Paul Ferraro
  */
-public class HotRodSessionManagerFactory<L, C extends Marshallability> implements SessionManagerFactory<L, Batch> {
+public class HotRodSessionManagerFactory<L, C extends Marshallability> implements SessionManagerFactory<L, TransactionBatch> {
 
     final Registrar<SessionExpirationListener> expirationRegistrar;
     final Scheduler expirationScheduler;
-
-    private final SessionFactory<UUID, HotRodSessionMetaData<L>, ?, L> sessionFactory;
+    final Batcher<TransactionBatch> batcher;
+    private final SessionFactory<CompositeSessionMetaDataEntry<L>, ?, L> sessionFactory;
 
     public HotRodSessionManagerFactory(HotRodSessionManagerFactoryConfiguration<C, L> config) {
-        SessionMetaDataFactory<UUID, HotRodSessionMetaData<L>, L> metaDataFactory = new HotRodSessionMetaDataFactory<>(config.getSessionManagerFactoryConfiguration().getDeploymentName(), config.getCache());
-        this.sessionFactory = new HotRodSessionFactory<>(metaDataFactory, this.createSessionAttributesFactory(config), config.getSessionManagerFactoryConfiguration().getLocalContextFactory());
-        ExpiredSessionRemover<UUID, HotRodSessionMetaData<L>, ?, L> remover = new ExpiredSessionRemover<>(this.sessionFactory);
+        CacheProperties properties = new RemoteCacheManagerProperties(config.getCache().getRemoteCacheManager().getConfiguration());
+        SessionMetaDataFactory<CompositeSessionMetaDataEntry<L>, L> metaDataFactory = new HotRodSessionMetaDataFactory<>(config.getCache(), properties);
+        this.sessionFactory = new CompositeSessionFactory<>(metaDataFactory, this.createSessionAttributesFactory(config, properties), config.getLocalContextFactory());
+        ExpiredSessionRemover<CompositeSessionMetaDataEntry<L>, ?, L> remover = new ExpiredSessionRemover<>(this.sessionFactory);
         this.expirationRegistrar = remover;
         this.expirationScheduler = new SessionExpirationScheduler(remover);
+        this.batcher = new HotRodBatcher(config.getCache());
     }
 
     @Override
-    public SessionManager<L, Batch> createSessionManager(SessionManagerConfiguration configuration) {
+    public SessionManager<L, TransactionBatch> createSessionManager(SessionManagerConfiguration configuration) {
         HotRodSessionManagerConfiguration config = new HotRodSessionManagerConfiguration() {
             @Override
             public SessionExpirationListener getExpirationListener() {
@@ -85,6 +93,11 @@ public class HotRodSessionManagerFactory<L, C extends Marshallability> implement
             public ServletContext getServletContext() {
                 return configuration.getServletContext();
             }
+
+            @Override
+            public Batcher<TransactionBatch> getBatcher() {
+                return HotRodSessionManagerFactory.this.batcher;
+            }
         };
         return new HotRodSessionManager<>(this.sessionFactory, config);
     }
@@ -94,17 +107,16 @@ public class HotRodSessionManagerFactory<L, C extends Marshallability> implement
         this.expirationScheduler.close();
     }
 
-    private SessionAttributesFactory<UUID, ?> createSessionAttributesFactory(HotRodSessionManagerFactoryConfiguration<C, L> configuration) {
-        SessionManagerFactoryConfiguration<C, L> config = configuration.getSessionManagerFactoryConfiguration();
-        MarshalledValueFactory<C> factory = config.getMarshalledValueFactory();
-        C context = config.getMarshallingContext();
+    private SessionAttributesFactory<?> createSessionAttributesFactory(HotRodSessionManagerFactoryConfiguration<C, L> configuration, CacheProperties properties) {
+        MarshalledValueFactory<C> factory = configuration.getMarshalledValueFactory();
+        C context = configuration.getMarshallingContext();
 
-        switch (config.getAttributePersistenceStrategy()) {
+        switch (configuration.getAttributePersistenceStrategy()) {
             case FINE: {
-                return new FineSessionAttributesFactory<>(configuration.getCache(), configuration.getCache(), new MarshalledValueMarshaller<>(factory, context));
+                return new FineSessionAttributesFactory<>(configuration.getCache(), configuration.getCache(), new MarshalledValueMarshaller<>(factory, context), properties);
             }
             case COARSE: {
-                return new CoarseSessionAttributesFactory<>(configuration.getCache(), new MarshalledValueMarshaller<>(factory, context));
+                return new CoarseSessionAttributesFactory<>(configuration.getCache(), new MarshalledValueMarshaller<>(factory, context), properties);
             }
             default: {
                 // Impossible

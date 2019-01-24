@@ -36,7 +36,7 @@ public class SessionAttributeKeyExternalizerTestCase {
 
     @Test
     public void test() throws ClassNotFoundException, IOException {
-        SessionAttributeKey key = new SessionAttributeKey(UUID.randomUUID(), 10);
+        SessionAttributeKey key = new SessionAttributeKey("test", UUID.randomUUID());
         new ExternalizerTester<>(new SessionAttributeKeyExternalizer()).test(key);
     }
 }

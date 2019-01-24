@@ -21,17 +21,15 @@
  */
 package org.wildfly.clustering.web.hotrod.session.coarse;
 
-import java.util.UUID;
-
-import org.wildfly.clustering.web.hotrod.SessionKey;
+import org.wildfly.clustering.infinispan.client.Key;
 
 /**
  * Cache key for session attributes.
  * @author Paul Ferraro
  */
-public class SessionAttributesKey extends SessionKey<UUID> {
+public class SessionAttributesKey extends Key<String> {
 
-    public SessionAttributesKey(UUID id) {
+    public SessionAttributesKey(String id) {
         super(id);
     }
 }

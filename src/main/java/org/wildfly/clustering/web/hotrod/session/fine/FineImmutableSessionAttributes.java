@@ -24,7 +24,6 @@ package org.wildfly.clustering.web.hotrod.session.fine;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.function.IntFunction;
 
 import org.infinispan.client.hotrod.RemoteCache;
 import org.wildfly.clustering.marshalling.spi.InvalidSerializedFormException;
@@ -36,22 +35,17 @@ import org.wildfly.clustering.web.session.ImmutableSessionAttributes;
  * Exposes session attributes for fine granularity sessions.
  * @author Paul Ferraro
  */
-public class FineImmutableSessionAttributes<V> implements ImmutableSessionAttributes, IntFunction<SessionAttributeKey> {
-    private final UUID id;
-    private final Map<String, Integer> names;
+public class FineImmutableSessionAttributes<V> implements ImmutableSessionAttributes {
+    private final String id;
+    private final Map<String, UUID> names;
     private final RemoteCache<SessionAttributeKey, V> cache;
     private final Marshaller<Object, V> marshaller;
 
-    public FineImmutableSessionAttributes(UUID id, Map<String, Integer> names, RemoteCache<SessionAttributeKey, V> cache, Marshaller<Object, V> marshaller) {
+    public FineImmutableSessionAttributes(String id, Map<String, UUID> names, RemoteCache<SessionAttributeKey, V> cache, Marshaller<Object, V> marshaller) {
         this.id = id;
         this.names = names;
         this.cache = cache;
         this.marshaller = marshaller;
-    }
-
-    @Override
-    public SessionAttributeKey apply(int attributeId) {
-        return new SessionAttributeKey(this.id, attributeId);
     }
 
     @Override
@@ -61,8 +55,8 @@ public class FineImmutableSessionAttributes<V> implements ImmutableSessionAttrib
 
     @Override
     public Object getAttribute(String name) {
-        Integer attributeId = this.names.get(name);
-        return (attributeId != null) ? this.read(name, this.cache.get(this.apply(attributeId))) : null;
+        UUID attributeId = this.names.get(name);
+        return (attributeId != null) ? this.read(name, this.cache.get(new SessionAttributeKey(this.id, attributeId))) : null;
     }
 
     protected Object read(String name, V value) {

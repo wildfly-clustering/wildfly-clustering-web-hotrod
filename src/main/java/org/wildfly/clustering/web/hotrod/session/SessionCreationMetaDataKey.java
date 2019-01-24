@@ -22,39 +22,15 @@
 
 package org.wildfly.clustering.web.hotrod.session;
 
-import java.util.Objects;
-
-import org.wildfly.clustering.web.hotrod.SessionKey;
+import org.wildfly.clustering.infinispan.client.Key;
 
 /**
  * Cache key for the session creation meta data entry.
  * @author Paul Ferraro
  */
-public class SessionCreationMetaDataKey extends SessionKey<String> {
+public class SessionCreationMetaDataKey extends Key<String> {
 
-    private final String deployment;
-
-    public SessionCreationMetaDataKey(String deployment, String id) {
+    public SessionCreationMetaDataKey(String id) {
         super(id);
-        this.deployment = deployment;
-    }
-
-    public String getDeployment() {
-        return this.deployment;
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(this.deployment, this.getId());
-    }
-
-    @Override
-    public boolean equals(Object object) {
-        return super.equals(object) && this.deployment.equals(((SessionCreationMetaDataKey) object).deployment);
-    }
-
-    @Override
-    public String toString() {
-        return this.deployment + "/" + this.getId();
     }
 }

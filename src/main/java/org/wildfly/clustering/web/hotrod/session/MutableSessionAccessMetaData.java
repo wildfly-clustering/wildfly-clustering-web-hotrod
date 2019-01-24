@@ -25,6 +25,7 @@ package org.wildfly.clustering.web.hotrod.session;
 import java.time.Duration;
 
 import org.wildfly.clustering.ee.Mutator;
+import org.wildfly.clustering.web.cache.session.SessionAccessMetaData;
 
 /**
  * @author Paul Ferraro

@@ -22,46 +22,17 @@
 
 package org.wildfly.clustering.web.hotrod.session;
 
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectOutput;
-import java.util.ServiceLoader;
-
 import org.kohsuke.MetaInfServices;
 import org.wildfly.clustering.marshalling.Externalizer;
-import org.wildfly.clustering.marshalling.spi.Serializer;
-import org.wildfly.clustering.web.IdentifierSerializerProvider;
+import org.wildfly.clustering.web.hotrod.SessionKeyExternalizer;
 
 /**
  * @author Paul Ferraro
  */
 @MetaInfServices(Externalizer.class)
-public class SessionCreationMetaDataKeyExternalizer implements Externalizer<SessionCreationMetaDataKey> {
+public class SessionCreationMetaDataKeyExternalizer extends SessionKeyExternalizer<SessionCreationMetaDataKey> {
 
-    private static final Serializer<String> SERIALIZER = findIdentifierSerializer();
-
-    private static Serializer<String> findIdentifierSerializer() {
-        for (IdentifierSerializerProvider provider : ServiceLoader.load(IdentifierSerializerProvider.class, IdentifierSerializerProvider.class.getClassLoader())) {
-            return provider.getSerializer();
-        }
-        throw new IllegalStateException();
-    }
-
-    @Override
-    public void writeObject(ObjectOutput output, SessionCreationMetaDataKey key) throws IOException {
-        output.writeUTF(key.getDeployment());
-        SERIALIZER.write(output, key.getId());
-    }
-
-    @Override
-    public SessionCreationMetaDataKey readObject(ObjectInput input) throws IOException, ClassNotFoundException {
-        String deployment = input.readUTF();
-        String sessionId = SERIALIZER.read(input);
-        return new SessionCreationMetaDataKey(deployment, sessionId);
-    }
-
-    @Override
-    public Class<SessionCreationMetaDataKey> getTargetClass() {
-        return SessionCreationMetaDataKey.class;
+    public SessionCreationMetaDataKeyExternalizer() {
+        super(SessionCreationMetaDataKey.class, SessionCreationMetaDataKey::new);
     }
 }
