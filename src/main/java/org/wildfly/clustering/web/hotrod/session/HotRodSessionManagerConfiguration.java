@@ -21,6 +21,8 @@
  */
 package org.wildfly.clustering.web.hotrod.session;
 
+import java.time.Duration;
+
 import javax.servlet.ServletContext;
 
 import org.wildfly.clustering.Registrar;
@@ -40,4 +42,5 @@ public interface HotRodSessionManagerConfiguration {
     Scheduler getExpirationScheduler();
     IdentifierFactory<String> getIdentifierFactory();
     Batcher<TransactionBatch> getBatcher();
+    Duration getStopTimeout();
 }
