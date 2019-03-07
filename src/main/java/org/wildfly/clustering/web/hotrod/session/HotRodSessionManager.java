@@ -61,6 +61,7 @@ public class HotRodSessionManager<MV, AV, L> implements SessionManager<L, Transa
     private final IdentifierFactory<String> identifierFactory;
     private final ServletContext context;
     private final Batcher<TransactionBatch> batcher;
+    private final Duration stopTimeout;
 
     private volatile Duration defaultMaxInactiveInterval = Duration.ofMinutes(30L);
     private volatile Registration expirationRegistration;
@@ -73,6 +74,7 @@ public class HotRodSessionManager<MV, AV, L> implements SessionManager<L, Transa
         this.context = configuration.getServletContext();
         this.identifierFactory = configuration.getIdentifierFactory();
         this.batcher = configuration.getBatcher();
+        this.stopTimeout = configuration.getStopTimeout();
     }
 
     @Override
@@ -83,6 +85,11 @@ public class HotRodSessionManager<MV, AV, L> implements SessionManager<L, Transa
     @Override
     public void stop() {
         this.expirationRegistration.close();
+    }
+
+    @Override
+    public Duration getStopTimeout() {
+        return this.stopTimeout;
     }
 
     @Override

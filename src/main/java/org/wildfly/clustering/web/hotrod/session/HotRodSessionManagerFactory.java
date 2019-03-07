@@ -21,6 +21,8 @@
  */
 package org.wildfly.clustering.web.hotrod.session;
 
+import java.time.Duration;
+
 import javax.servlet.ServletContext;
 
 import org.wildfly.clustering.Registrar;
@@ -54,6 +56,8 @@ public class HotRodSessionManagerFactory<L, C extends Marshallability> implement
     final Registrar<SessionExpirationListener> expirationRegistrar;
     final Scheduler expirationScheduler;
     final Batcher<TransactionBatch> batcher;
+    final Duration transactionTimeout;
+
     private final SessionFactory<CompositeSessionMetaDataEntry<L>, ?, L> sessionFactory;
 
     public HotRodSessionManagerFactory(HotRodSessionManagerFactoryConfiguration<C, L> config) {
@@ -64,6 +68,7 @@ public class HotRodSessionManagerFactory<L, C extends Marshallability> implement
         this.expirationRegistrar = remover;
         this.expirationScheduler = new SessionExpirationScheduler(remover);
         this.batcher = new HotRodBatcher(config.getCache());
+        this.transactionTimeout = Duration.ofMillis(config.getCache().getRemoteCacheManager().getConfiguration().transaction().timeout());
     }
 
     @Override
@@ -97,6 +102,11 @@ public class HotRodSessionManagerFactory<L, C extends Marshallability> implement
             @Override
             public Batcher<TransactionBatch> getBatcher() {
                 return HotRodSessionManagerFactory.this.batcher;
+            }
+
+            @Override
+            public Duration getStopTimeout() {
+                return HotRodSessionManagerFactory.this.transactionTimeout;
             }
         };
         return new HotRodSessionManager<>(this.sessionFactory, config);
